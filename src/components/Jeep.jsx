@@ -5,9 +5,10 @@ import { useAttackDroneStore } from '../store/attackDroneStore';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import DetectionEffect from './DetectionEffect';
-import useThermalMaterial from './useThermalMaterial';
 import DestroyedTarget from './attack-drone/DestroyedTarget';
 import FireEffect from './attack-drone/FireEffect';
+import useThermalMaterial from './useThermalMaterial';
+
 
 const SCAN_RADIUS = 20;
 
@@ -17,14 +18,10 @@ const Jeep = ({ position, id = 'jeep-1' }) => {
   const { destroyedTargets } = useAttackDroneStore();
   const alreadyDetected = useRef(false);
   const [showEffect, setShowEffect] = useState(false);
-  
-  // Apply thermal vision to jeep
+
+  const jeepId = useRef(`jeep-${position[0]}-${position[1]}-${position[2]}`);
   useThermalMaterial(scene, 'jeep');
 
-  // Compute unique ID for this jeep
-  const jeepId = useRef(`jeep-${position[0]}-${position[1]}-${position[2]}`);
-
-  // Check if this jeep is already marked as a target
   useEffect(() => {
     if (targets && targets.some(target => target.id === jeepId.current)) {
       alreadyDetected.current = true;
@@ -36,12 +33,10 @@ const Jeep = ({ position, id = 'jeep-1' }) => {
 
     const jeepWorldPosition = new THREE.Vector3(...position);
     const currentUAVPosition = new THREE.Vector3(...uavPosition);
-
     const distance = jeepWorldPosition.distanceTo(currentUAVPosition);
 
     if (distance < SCAN_RADIUS) {
       const isAlreadyMarked = targets.some(target => target.id === jeepId.current);
-
       if (!isAlreadyMarked) {
         const newTarget = {
           id: jeepId.current,
@@ -51,16 +46,13 @@ const Jeep = ({ position, id = 'jeep-1' }) => {
         addTarget(newTarget);
         alreadyDetected.current = true;
         setShowEffect(true);
-        setTimeout(() => setShowEffect(false), 3000); // hide after 3 seconds
-        console.log('Jeep automatically marked:', newTarget);
+        setTimeout(() => setShowEffect(false), 3000);
       }
     }
   });
 
-  // Check if this jeep is destroyed
   const isDestroyed = destroyedTargets.includes(id) || destroyedTargets.includes(jeepId.current);
   
-  // If jeep is destroyed, render destroyed version instead
   if (isDestroyed) {
     return (
       <>

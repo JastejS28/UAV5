@@ -87,8 +87,7 @@ const Terrain = () => {
       castShadow
     >
       <mesh
-        name="terrain" // This name is used for raycasting
-        // ...other properties
+        name="terrain" 
       >
         {/* ...geometry and materials */}
       </mesh>
@@ -97,5 +96,3 @@ const Terrain = () => {
 };
 useGLTF.preload('/models/mountain/terrain.glb');
 export default Terrain;
-
-
