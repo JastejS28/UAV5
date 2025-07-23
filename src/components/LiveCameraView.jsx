@@ -138,6 +138,11 @@ const ThermalShader = {
       // Get thermal color
       vec3 thermalColor = getThermalColor(brightness);
       
+      // Enhance brightness for models (non-terrain objects)
+      if (brightness > 0.3) {
+        thermalColor = mix(thermalColor, vec3(1.0, 1.0, 0.0), 0.3); // Add yellow tint to bright objects
+      }
+      
       // Add realistic scan lines with multiple frequencies
       float scanline1 = sin(vUv.y * 400.0 + time * 2.0) * scanlineIntensity;
       float scanline2 = sin(vUv.y * 800.0 + time * 3.0) * scanlineIntensity * 0.5;
