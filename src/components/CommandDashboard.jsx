@@ -246,7 +246,7 @@ const CommandDashboard = () => {
         
         <Box sx={{ mt: 2 }}>
           <Typography variant="body2" gutterBottom>Ground Speed: {isCrashed ? '0' : (isMoving ? '35' : '0')} km/h</Typography>
-          <Typography variant="body2" gutterBottom>Ground Speed: {isCrashed ? '0' : (isMoving ? '15' : '0')} km/h</Typography>
+          <Typography variant="body2" gutterBottom>Flight Speed: {isCrashed ? '0' : (isMoving ? '15' : '0')} km/h</Typography>
           <Typography variant="body2" gutterBottom color="success.main">
             ✨ Use click-to-move or slider above for control
           </Typography>
