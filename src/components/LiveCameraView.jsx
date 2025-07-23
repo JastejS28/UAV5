@@ -62,13 +62,30 @@ const ThermalShader = {
     uniform float thermalIntensity;
     varying vec2 vUv;
     
-    // Simple noise function
-    float random(vec2 st) {
+    // Enhanced noise function for terrain variation
+    float noise(vec2 st) {
       return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+    }
+    
+    // Multi-octave noise for terrain variation
+    float fbm(vec2 st) {
+      float value = 0.0;
+      float amplitude = 0.5;
+      for (int i = 0; i < 4; i++) {
+        value += amplitude * noise(st);
+        st *= 2.0;
+        amplitude *= 0.5;
+      }
+      return value;
     }
     
     // Thermal color mapping like your reference image
     vec3 getThermalColor(float temp) {
+      temp = clamp(temp, 0.0, 1.0);
+      
+      // Add terrain variation using noise
+      float terrainNoise = fbm(vUv * 20.0 + time * 0.1) * 0.3;
+      temp += terrainNoise;
       temp = clamp(temp, 0.0, 1.0);
       
       // Cold areas (dark green to green)
@@ -111,7 +128,7 @@ const ThermalShader = {
       brightness = clamp(brightness, 0.0, 1.0);
       
       // Add subtle noise
-      float noise = random(vUv * 100.0 + time * 0.1) * noiseIntensity;
+      float noise = noise(vUv * 100.0 + time * 0.1) * noiseIntensity;
       brightness += noise;
       
       brightness = clamp(brightness, 0.0, 1.0);
