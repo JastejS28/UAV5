@@ -73,6 +73,7 @@ const MissionHUD = () => {
               Mission Time
             </Typography>
             <Typography variant="body2" color={getTimeRemaining() < 60 ? 'error.main' : 'text.primary'}>
+            <Typography variant="body2" color={missionTimeRemaining < 60 ? 'error.main' : 'text.primary'}>
               {formatTime(missionTimeRemaining)} remaining
             </Typography>
           </Box>
