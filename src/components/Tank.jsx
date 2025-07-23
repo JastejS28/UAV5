@@ -5,8 +5,6 @@ import { useAttackDroneStore } from '../store/attackDroneStore';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import DetectionEffect from './DetectionEffect';
-import useThermalMaterial from './useThermalMaterial';
-
 import DestroyedTarget from './attack-drone/DestroyedTarget';
 import FireEffect from './attack-drone/FireEffect';
 
@@ -18,7 +16,6 @@ const Tank = ({ position, id = 'tank-1' }) => {
   const { destroyedTargets } = useAttackDroneStore();
   const alreadyDetected = useRef(false);
   const [showEffect, setShowEffect] = useState(false);
-  useThermalMaterial(scene, 'tank');
 
   const tankId = useRef(`tank-${position[0]}-${position[1]}-${position[2]}`);
 

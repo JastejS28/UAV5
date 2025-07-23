@@ -1,75 +1,39 @@
 import { create } from 'zustand';
 
-export const useClickControlStore = create((set, get) => ({
-  // Click modes
-  isClickToMoveEnabled: false,
-  isSpawnMode: false,
+// Define the click control store
+export const useClickControlStore = create((set) => ({
+  clickMode: 'spawn', // Start in spawn mode instead of 'move'
+  isSpawnMode: true,  // Add this flag for clarity
+  spawnIndicator: null, // To store the visual indicator for spawn position
+  clickIndicator: null, // To store the movement click indicator
   
-  // Visual indicators
-  clickIndicator: null, // {position: [x, y, z], timestamp: Date.now()}
-  spawnIndicator: null,
+  // Method to change the click mode
+  setClickMode: (mode) => set({ clickMode: mode }),
   
-  // Terrain interaction
-  lastClickedPosition: null,
-  isProcessingClick: false,
+  // Set spawn mode explicitly
+  setSpawnMode: (enabled) => set({ 
+    clickMode: enabled ? 'spawn' : 'move',
+    isSpawnMode: enabled 
+  }),
   
-  // Actions
-  setClickToMoveEnabled: (enabled) => {
-    console.log(`Click-to-Move ${enabled ? 'ENABLED' : 'DISABLED'}`);
-    set({ isClickToMoveEnabled: enabled });
+  // Toggle method for UI buttons
+  toggleMoveMode: () => {
+    set((state) => ({
+      clickMode: state.clickMode === 'move' ? 'none' : 'move',
+      isSpawnMode: false
+    }));
   },
   
-  setSpawnMode: (enabled) => {
-    console.log(`Spawn Mode ${enabled ? 'ENABLED' : 'DISABLED'}`);
-    set({ 
-      isSpawnMode: enabled,
-      isClickToMoveEnabled: false // Disable movement when spawning
-    });
-  },
+  // Add these methods for handling indicators
+  setSpawnIndicator: (position) => set({ 
+    spawnIndicator: { position, type: 'spawn' } 
+  }),
   
-  setClickIndicator: (position) => {
-    if (position) {
-      console.log('Click indicator set at:', position);
-      set({ 
-        clickIndicator: { 
-          position, 
-          timestamp: Date.now() 
-        }
-      });
-      
-      // Auto-remove indicator after 3 seconds
-      setTimeout(() => {
-        const current = get().clickIndicator;
-        if (current && current.position === position) {
-          set({ clickIndicator: null });
-        }
-      }, 3000);
-    } else {
-      set({ clickIndicator: null });
-    }
-  },
+  setClickIndicator: (position) => set({ 
+    clickIndicator: { position, type: 'click' } 
+  }),
   
-  setSpawnIndicator: (position) => {
-    set({ spawnIndicator: position ? { position, timestamp: Date.now() } : null });
-  },
-  
-  setLastClickedPosition: (position) => {
-    set({ lastClickedPosition: position });
-  },
-  
-  setProcessingClick: (processing) => {
-    set({ isProcessingClick: processing });
-  },
-  
-  // Reset all states
-  resetClickStates: () => {
-    set({
-      isClickToMoveEnabled: false,
-      isSpawnMode: false,
-      clickIndicator: null,
-      spawnIndicator: null,
-      lastClickedPosition: null,
-      isProcessingClick: false
-    });
-  }
+  resetClickStates: () => set({
+    clickIndicator: null
+  })
 }));

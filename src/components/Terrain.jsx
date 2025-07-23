@@ -7,92 +7,99 @@ import * as THREE from 'three';
 const Terrain = () => {
   const { scene: loadedGltfScene } = useGLTF('/models/mountain/terrain.glb');
   const { isThermalVision } = useUAVStore();
-  const sceneInstanceRef = useRef(null);
+  
+  const visualTerrainRef = useRef();
   const originalMaterialsRef = useRef(new Map());
   const [isInitialized, setIsInitialized] = useState(false);
-
-  const terrainScale = 100;
+  const [interactionLayer, setInteractionLayer] = useState(null);
 
   useEffect(() => {
     if (loadedGltfScene && !isInitialized) {
-      console.log('[Terrain] Initializing: GLTF scene loaded. Cloning scene...');
-      const clonedScene = loadedGltfScene.clone(true);
-      const materialsMap = new Map();
-      clonedScene.traverse((node) => {
-        if (node.isMesh && node.material) {
-          materialsMap.set(node.uuid, node.material.clone());
+      console.log('[Terrain] Initializing terrain components...');
+      
+      // --- 1. Create the VISIBLE terrain ---
+      const visualClone = loadedGltfScene.clone(true);
+      visualClone.name = "visual-terrain";
+      visualClone.traverse(node => {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+          originalMaterialsRef.current.set(node.uuid, node.material);
         }
       });
-      originalMaterialsRef.current = materialsMap;
-      sceneInstanceRef.current = clonedScene;
-      setIsInitialized(true);
-      console.log(`[Terrain] Initialization complete. Stored ${materialsMap.size} original materials.`);
+      visualTerrainRef.current = visualClone;
 
-      if (THERMAL_MATERIALS.terrain.uniforms) {
-        const tempBox = new THREE.Box3();
-        const unscaledBox = new THREE.Box3().setFromObject(loadedGltfScene);
-        
-        console.log(`[Terrain.jsx] Unscaled terrain bbox: min.y=${unscaledBox.min.y.toFixed(4)}, max.y=${unscaledBox.max.y.toFixed(4)}`);
-
-        let worldMinY = unscaledBox.min.y * terrainScale;
-        let worldMaxY = unscaledBox.max.y * terrainScale;
-
-        // Ensure maxHeight is always greater than minHeight for the shader
-        if (worldMaxY <= worldMinY) {
-          console.warn(`[Terrain.jsx] Calculated worldMaxY (${worldMaxY.toFixed(4)}) is not greater than worldMinY (${worldMinY.toFixed(4)}). Adjusting maxHeight slightly.`);
-          worldMaxY = worldMinY + 0.1; // Add a small delta to prevent division by zero or negative range
+      // --- 2. Create the INVISIBLE interaction layer ---
+      const interactionClone = loadedGltfScene.clone(true);
+      interactionClone.name = "interaction-terrain-layer";
+      
+      // IMPORTANT: Use a transparent material instead of visible:false
+      // This keeps the mesh raycast-able but visually invisible
+      const interactionMaterial = new THREE.MeshBasicMaterial({ 
+        transparent: true, 
+        opacity: 0.0,     // Completely transparent
+        side: THREE.DoubleSide,
+        depthWrite: false // This is crucial - don't write to depth buffer
+      });
+      
+      interactionClone.traverse(node => {
+        if (node.isMesh) {
+          node.userData.isClickableTerrain = true;
+          node.material = interactionMaterial;
+          // For debugging, log how many meshes we're marking as clickable
+          console.log(`[Terrain] Marked mesh "${node.name}" as clickable terrain`);
         }
+      });
+      setInteractionLayer(interactionClone);
 
-        THERMAL_MATERIALS.terrain.uniforms.minHeight.value = worldMinY;
-        THERMAL_MATERIALS.terrain.uniforms.maxHeight.value = worldMaxY;
-        console.log(`[Terrain.jsx] Set thermal shader uniforms: minH=${worldMinY.toFixed(4)}, maxH=${worldMaxY.toFixed(4)}`);
-        console.log(`[Terrain.jsx] Effective height range for shader: ${(worldMaxY - worldMinY).toFixed(4)}`);
-      }
+      setIsInitialized(true);
+      console.log('[Terrain] Terrain initialized with interaction layer');
     }
-  }, [loadedGltfScene, isInitialized, terrainScale]);
+  }, [loadedGltfScene, isInitialized]);
 
+  // Effect for handling thermal vision on the VISUAL terrain
   useEffect(() => {
-    if (!isInitialized || !sceneInstanceRef.current) {
-      return;
-    }
-    // console.log(`[Terrain] Applying materials. Thermal vision active: ${isThermalVision}`); // Keep this for state changes
-    sceneInstanceRef.current.traverse((node) => {
+    if (!visualTerrainRef.current) return;
+    
+    console.log('[Terrain] Updating material for thermal vision:', isThermalVision);
+    
+    visualTerrainRef.current.traverse((node) => {
       if (node.isMesh) {
-        if (isThermalVision) {
-          if (node.material !== THERMAL_MATERIALS.terrain) {
-            node.material = THERMAL_MATERIALS.terrain;
+        try {
+          if (isThermalVision) {
+            // Use simple non-shader material for thermal vision
+            if (node.material !== THERMAL_MATERIALS.terrain) {
+              node.material = THERMAL_MATERIALS.terrain;
+            }
+          } else {
+            // Restore original material
+            const originalMat = originalMaterialsRef.current.get(node.uuid);
+            if (originalMat && node.material !== originalMat) {
+              node.material = originalMat;
+            }
           }
-        } else {
-          const originalMat = originalMaterialsRef.current.get(node.uuid);
-          if (originalMat && node.material !== originalMat) {
-            node.material = originalMat;
-          }
+        } catch (err) {
+          console.error('[Terrain] Error handling material:', err);
+          // Fallback to a safe material
+          node.material = new THREE.MeshBasicMaterial({ color: 0xcccccc });
         }
       }
     });
-  }, [isThermalVision, isInitialized]);
+  }, [isThermalVision]);
 
-  if (!isInitialized || !sceneInstanceRef.current) {
-    return null; 
-  }
+  if (!isInitialized) return null;
 
   return (
-    <primitive
-      key={isThermalVision ? 'thermal-terrain' : 'original-terrain'}
-      object={sceneInstanceRef.current} 
-      position={[0, 0, 0]}
-      rotation={[0, 0, 0]}
-      scale={[terrainScale, terrainScale, terrainScale]}
-      receiveShadow
-      castShadow
-    >
-      <mesh
-        name="terrain" 
-      >
-        {/* ...geometry and materials */}
-      </mesh>
-    </primitive>
+    <group scale={[100, 100, 100]} position={[0, 0, 0]}>
+      {/* Render interaction layer first so it's "in front" for raycasting */}
+      <primitive object={interactionLayer} />
+      {/* Then render the visual terrain */}
+      <primitive object={visualTerrainRef.current} />
+    </group>
   );
 };
+
+// Preload terrain model
 useGLTF.preload('/models/mountain/terrain.glb');
+
 export default Terrain;

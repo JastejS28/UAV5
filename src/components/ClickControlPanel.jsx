@@ -139,7 +139,11 @@ const ClickControlPanel = () => {
         
         {clickIndicator && (
           <Typography variant="body2" color="success.main" gutterBottom>
-            <strong>Last Click:</strong> ({clickIndicator.position.map(p => p.toFixed(1)).join(', ')})
+            <strong>Last Click:</strong> ({Array.isArray(clickIndicator) 
+              ? clickIndicator.map(p => p.toFixed(1)).join(', ')
+              : clickIndicator.position 
+                ? clickIndicator.position.map(p => p.toFixed(1)).join(', ') 
+                : 'Invalid format'})
           </Typography>
         )}
       </Box>

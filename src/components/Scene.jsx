@@ -7,7 +7,6 @@ import RainEnvironment from './RainEnvironment';
 import Terrain from './Terrain';
 import UAV from './UAV';
 import AttackUAV  from './attack-drone/AttackUAV';
-import ThermalVisionEffect from './ThermalVisionEffect';
 import Tank from './Tank';
 import Jeep from './Jeep';
 import Warehouse from './Warehouse';
@@ -22,11 +21,17 @@ import Soldier from './Soldier';
 import TerrainCollisionDetector from './TerrainCollisionDetector';
 import TerrainClickHandler from './TerrainClickHandler'; // Add click handler
 import ClickIndicators from './ClickIndicators'; // Add visual indicators
+import LiveCameraView from './LiveCameraView'; // Import the new LiveCameraView
+import UAVController from './UAVController'; // Import the UAV controller
 
 // Create a component to handle the scene content inside Canvas
 const SceneContent = ({ droneType }) => {
   const { environmentMode } = useEnvironmentStore();
   const { cameraMode } = useCameraStore();
+  const { position } = useUAVStore(); // Get position from store
+  
+  // Check if UAV has been spawned yet (not at default position)
+  const hasSpawned = position[0] !== 0 || position[1] !== 50 || position[2] !== 0;
 
   return (
     <>
@@ -68,7 +73,8 @@ const SceneContent = ({ droneType }) => {
       
       <Tank position={[40, 19, 16]} id="tank-40-19-16" />
       <Jeep position={[40, 19, 20]} id="jeep-40-19-20" />
-      <Warehouse position={[40, 21, 32]} id="warehouse-40-20-35" />
+      {/* The warehouse ID in your Scene.jsx was slightly different, ensure it matches */}
+      <Warehouse position={[40, 21, 32]} id="warehouse-40-20-35" /> 
       <Soldier position={[40, 21, 32]} id="soldier-40-20-34" />
       
       {/* Anti-drone defense systems at key locations */}
@@ -80,29 +86,36 @@ const SceneContent = ({ droneType }) => {
       {/* New ArmyBase component addition */}
       <ArmyBase position={[-45, 25, -40]} id="army-base-1" />
       
-      {droneType === 'surveillance' && <UAV />}
-      {droneType === 'attack' && <AttackUAV />}
-      
+      {/* Only render the UAV if it has been spawned */}
+      {hasSpawned && (
+        <>
+          {droneType === 'surveillance' && <UAV />}
+          {droneType === 'attack' && <AttackUAV />}
+        </>
+      )}
   
+      {/* Add UAV Controller for advanced UAV management */}
+      <UAVController />
     </>
   );
 };
 
-const Scene = ({ droneType }) => {
+// Update the Scene component to accept the ref
+const Scene = ({ droneType, liveViewPortalRef }) => {
   const { environmentMode } = useEnvironmentStore();
-
-  useEffect(() => {
-    if (droneType === 'attack') {
-      const homeBase = [-50, 30, -40];
-      useUAVStore.setState({ position: [...homeBase] }); 
-    }
-  }, [droneType]);
+  
+  // Remove this effect that sets hardcoded position:
+  // useEffect(() => {
+  //   if (droneType === 'attack') {
+  //     const homeBase = [-50, 30, -40];
+  //     useUAVStore.setState({ position: [...homeBase] }); 
+  //   }
+  // }, [droneType]);
   
   return (
     <Canvas 
       shadows 
       gl={{ antialias: true }}
-      // REMOVED: frameloop="demand" 
       style={{ 
         background: environmentMode === 'night' ? '#000000' : (environmentMode === 'rain' ? '#33333D' : '#87CEEB'),
         position: 'absolute',
@@ -113,7 +126,8 @@ const Scene = ({ droneType }) => {
       }}
     >
       <SceneContent droneType={droneType} />
-       <ThermalVisionEffect />
+      {/* Add the new headless LiveCameraView renderer and pass the ref */}
+      <LiveCameraView portalRef={liveViewPortalRef} />
     </Canvas>
   );
 };

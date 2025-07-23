@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { useUAVStore } from '../store/uavStore';
 import ClickControlPanel from './ClickControlPanel'; // Add click control panel
+import { useClickControlStore } from '../store/clickControlStore';
 
 const CommandDashboard = () => {
   const { 
@@ -13,6 +14,8 @@ const CommandDashboard = () => {
     setTargetPosition, isThermalVision, setThermalVision, targets,
     isCrashed, crashMessage, setPosition, targetPosition
   } = useUAVStore();
+  
+  const { clickMode, toggleMoveMode } = useClickControlStore();
   
   const [coordinates, setCoordinates] = useState({ x: '', y: '', z: '' });
   const [altitudeSlider, setAltitudeSlider] = useState(position[1]);
@@ -93,6 +96,26 @@ const CommandDashboard = () => {
 
       {/* ADD CLICK CONTROL PANEL HERE */}
       <ClickControlPanel />
+
+      {/* Click-to-Move Toggle Button */}
+      <Paper elevation={3} sx={{ p: 2, mb: 2, textAlign: 'center' }}>
+        <Button 
+          variant="contained" 
+          onClick={toggleMoveMode}
+          color={clickMode === 'move' ? 'success' : 'primary'}
+          size="large"
+          sx={{ 
+            px: 4, 
+            py: 2, 
+            fontSize: '1rem', 
+            fontWeight: 'bold',
+            borderRadius: 2,
+            width: '100%'
+          }}
+        >
+          {clickMode === 'move' ? '✅ Click-to-Move ENABLED' : '❌ Click-to-Move DISABLED'}
+        </Button>
+      </Paper>
 
       {/* UAV Status */}
       <Paper elevation={3} sx={{ p: 2, mb: 2 }}>

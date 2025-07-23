@@ -4,19 +4,20 @@ import { useUAVStore } from '../store/uavStore';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import DetectionEffect from './DetectionEffect';
-import useThermalMaterial from './useThermalMaterial';
-
+import DestroyedTarget from './attack-drone/DestroyedTarget';
+import { useAttackDroneStore } from '../store/attackDroneStore';
 
 const SCAN_RADIUS = 20;
 
 const Warehouse = ({ position, id = 'warehouse-1' }) => {
   const { scene } = useGLTF('/models/building/warehouse.glb');
   const { addTarget, position: uavPosition, targets } = useUAVStore();
+  const { destroyedTargets } = useAttackDroneStore();
   const alreadyDetected = useRef(false);
   const [showEffect, setShowEffect] = useState(false);
 
   const warehouseId = useRef(`warehouse-${position[0]}-${position[1]}-${position[2]}`);
-  useThermalMaterial(scene);
+  const myArrayRef = useRef([]); // Initialize the ref with an empty array
 
   useEffect(() => {
     if (targets && targets.some(target => target.id === warehouseId.current)) {
@@ -24,7 +25,29 @@ const Warehouse = ({ position, id = 'warehouse-1' }) => {
     }
   }, [targets]);
 
+  // When setting up the ref
+  useEffect(() => {
+    myArrayRef.current = targets || []; // Always ensure it's at least an empty array
+  }, [targets]);
+
+  // When using the ref
+  useEffect(() => {
+    // This is now safe because the ref is always at least an empty array
+    const hasMatchingItems = myArrayRef.current.some(item => item.matches);
+
+    if (hasMatchingItems) {
+      // Do something
+    }
+  }, [targets]);
+
   useFrame(() => {
+    if (destroyedTargets.includes(warehouseId.current)) {
+      scene.visible = false;
+      return;
+    } else {
+      scene.visible = true;
+    }
+
     if (alreadyDetected.current) return;
 
     const warehouseWorldPosition = new THREE.Vector3(...position);
@@ -47,6 +70,10 @@ const Warehouse = ({ position, id = 'warehouse-1' }) => {
       }
     }
   });
+
+  if (destroyedTargets.includes(warehouseId.current)) {
+    return <DestroyedTarget position={position} targetType="warehouse" />;
+  }
 
   return (
     <>

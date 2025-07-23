@@ -11,25 +11,41 @@ const TerrainCollisionDetector = () => {
   const terrainMeshes = useRef([]);
   const frameCount = useRef(0);
   const isInitialized = useRef(false);
-  const lastUAVPosition = useRef(null);
+  const collisionEnabled = useRef(false);
+  const uavRef = useRef(null);
   
-  // Find terrain meshes on mount
+  // Find terrain meshes on mount and set up collision system
   useEffect(() => {
     const findTerrainMeshes = () => {
       const meshes = [];
       
+      // Find the UAV mesh first to exclude it
+      scene.traverse((object) => {
+        if (object.name === 'UAV' || object.name?.includes('UAV') || 
+            object.userData?.isUAV === true) {
+          uavRef.current = object;
+          console.log('[TerrainCollisionDetector] Found UAV mesh:', object.name);
+        }
+      });
+      
+      // Then find terrain meshes
       scene.traverse((object) => {
         if (object.isMesh && object.geometry) {
+          // Skip the UAV itself or its children
+          if (uavRef.current && 
+             (object === uavRef.current || object.isDescendantOf?.(uavRef.current))) {
+            return;
+          }
+          
           const isTerrainMesh = (
+            object.userData.isClickableTerrain === true ||
             object.name === 'terrain' ||
             object.name?.toLowerCase().includes('terrain') ||
             object.name?.toLowerCase().includes('mountain') ||
             object.name?.toLowerCase().includes('ground') ||
             object.name?.toLowerCase().includes('landscape') ||
             object.parent?.name?.toLowerCase().includes('terrain') ||
-            object.parent?.name?.toLowerCase().includes('mountain') ||
-            object.material?.name?.toLowerCase().includes('terrain') ||
-            object.geometry?.attributes?.position?.count > 500
+            object.parent?.name?.toLowerCase().includes('mountain')
           );
           
           if (isTerrainMesh) {
@@ -43,78 +59,115 @@ const TerrainCollisionDetector = () => {
       return meshes.length > 0;
     };
 
-    const timer1 = setTimeout(() => {
+    // Initial detection of terrain meshes
+    setTimeout(() => {
       findTerrainMeshes();
-    }, 1000);
-    
-    const timer2 = setTimeout(() => {
-      const found = findTerrainMeshes();
       
+      // Try again after a delay to ensure all meshes are loaded
       setTimeout(() => {
-        if (found || terrainMeshes.current.length > 0) {
+        const found = findTerrainMeshes();
+        if (found) {
           isInitialized.current = true;
           console.log('[TerrainCollisionDetector] Collision detection ACTIVATED');
-        } else {
-          console.warn('[TerrainCollisionDetector] No terrain found');
         }
       }, 2000);
-    }, 3000);
+    }, 1000);
+    
+    // Listen for position changes to handle post-spawn grace period
+    const unsubscribe = useUAVStore.subscribe(
+      (state) => state.position,
+      (position, previousPosition) => {
+        if (!previousPosition) return;
+        
+        // Check if moved from default/spawn position
+        const isDefault = previousPosition[0] === 0 && previousPosition[1] === 50 && previousPosition[2] === 0;
+        const hasMoved = 
+          Math.abs(position[0] - previousPosition[0]) > 0.5 || 
+          Math.abs(position[1] - previousPosition[1]) > 0.5 || 
+          Math.abs(position[2] - previousPosition[2]) > 0.5;
+          
+        // If moving from default position, disable collision briefly
+        if (isDefault && hasMoved) {
+          console.log('[TerrainCollisionDetector] 🚁 Spawn detected - Grace period started');
+          collisionEnabled.current = false;
+          
+          // Re-enable after grace period
+          setTimeout(() => {
+            console.log('[TerrainCollisionDetector] ⚠️ Grace period ended - Collision detection enabled');
+            collisionEnabled.current = true;
+          }, 3000); // 3 second grace period
+        }
+      }
+    );
     
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
+      unsubscribe();
     };
   }, [scene]);
 
+  // Collision detection in animation frame
   useFrame(() => {
-    if (!isInitialized.current) return;
+    // Only run if initialized and collision is enabled
+    if (!isInitialized.current || !collisionEnabled.current) return;
     
-    frameCount.current += 1;
-    if (frameCount.current < 60) return;
-    if (frameCount.current % 30 !== 0) return; // Check every 30 frames instead of 15
-    if (terrainMeshes.current.length === 0) return;
-
-    const { position: uavPosition, setCrashed, isCrashed } = useUAVStore.getState();
+    // Only check every 30 frames for performance
+    frameCount.current = (frameCount.current + 1) % 30;
+    if (frameCount.current !== 0) return;
     
+    const { position, isCrashed, setCrashed } = useUAVStore.getState();
+    
+    // Don't check if already crashed
     if (isCrashed) return;
     
-    // Initialize last position on first check
-    if (!lastUAVPosition.current) {
-      lastUAVPosition.current = [...uavPosition];
-      return;
-    }
+    // Create position vector
+    const uavPos = new THREE.Vector3(...position);
     
-    // Calculate if UAV is actually moving by comparing positions
-    const currentPos = new THREE.Vector3(...uavPosition);
-    const lastPos = new THREE.Vector3(...lastUAVPosition.current);
-    const movementDistance = currentPos.distanceTo(lastPos);
-    
-    // Only check collision if UAV has moved more than 0.1 units
-    if (movementDistance < 0.1) {
-      lastUAVPosition.current = [...uavPosition];
-      return;
-    }
-    
-    // Update last position
-    lastUAVPosition.current = [...uavPosition];
-    
-    const uavPos = new THREE.Vector3(...uavPosition);
-    
+    // Set up the raycaster with specific layer filtering
+    raycaster.current.layers.set(0); // Only detect default layer
     raycaster.current.set(uavPos, downVector);
-    raycaster.current.far = 200;
+    raycaster.current.far = 100; // Detect terrain up to 100 units below
     
-    const intersections = raycaster.current.intersectObjects(terrainMeshes.current, true);
+    // Debug visualization
+    if (frameCount.current === 0) {
+      console.log(`[TerrainCollisionDetector] Checking collision for UAV at Y=${position[1].toFixed(2)}`);
+    }
+    
+    // CRITICAL FIX: Exclude UAV from intersections by filtering the results
+    const intersections = raycaster.current.intersectObjects(terrainMeshes.current, true)
+      .filter(hit => {
+        // Debug which object was hit
+        console.log(`  -> Hit object: ${hit.object.name}, distance: ${hit.distance.toFixed(2)}`);
+        
+        // Return true only for terrain objects (excluding UAV and its parts)
+        return !hit.object.name?.includes('UAV') && 
+               !hit.object.parent?.name?.includes('UAV') &&
+               hit.object.userData.isUAV !== true;
+      });
     
     if (intersections.length > 0) {
       const terrainHeight = intersections[0].point.y;
       const uavAltitude = uavPos.y;
       const clearance = uavAltitude - terrainHeight;
       
-      // Only log critical situations - remove excessive logging
-      if (clearance < 5) {
-        console.error('💥 UAV CRASHED INTO TERRAIN!');
-        setCrashed(true, 'UAV CRASHED - Terrain collision during flight!');
+      console.log(`[TerrainCollisionDetector] Ground clearance: ${clearance.toFixed(2)} units to ${intersections[0].object.name}`);
+      
+      // Crash if UAV is too close to terrain
+      if (clearance < 2.5) {
+        console.error(`💥 UAV CRASHED INTO TERRAIN! Clearance: ${clearance.toFixed(2)} units`);
+        console.log(`Terrain height: ${terrainHeight}, UAV altitude: ${uavAltitude}`);
+        setCrashed(true, 'UAV CRASHED - Terrain collision detected!');
       }
+    } else {
+      console.log(`[TerrainCollisionDetector] No terrain detected below UAV`);
+    }
+  });
+
+  // Simple debug visualization
+  useFrame(() => {
+    if (frameCount.current !== 0) return;
+    const { position } = useUAVStore.getState();
+    if (position[1] < 30) {
+      console.log(`[Debug] WARNING - UAV flying low: ${position[1].toFixed(1)} units`);
     }
   });
 

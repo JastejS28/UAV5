@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import DetectionEffect from './DetectionEffect';
 import DestroyedTarget from './attack-drone/DestroyedTarget';
 import FireEffect from './attack-drone/FireEffect';
-import useThermalMaterial from './useThermalMaterial';
 
 
 const SCAN_RADIUS = 20;
@@ -20,7 +19,6 @@ const Jeep = ({ position, id = 'jeep-1' }) => {
   const [showEffect, setShowEffect] = useState(false);
 
   const jeepId = useRef(`jeep-${position[0]}-${position[1]}-${position[2]}`);
-  useThermalMaterial(scene, 'jeep');
 
   useEffect(() => {
     if (targets && targets.some(target => target.id === jeepId.current)) {
