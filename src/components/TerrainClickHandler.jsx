@@ -111,7 +111,7 @@ const TerrainClickHandler = () => {
       setClickIndicator(targetPos);
     }
   }, [
-    scene, camera, raycaster, gl, clickMode, isInitialized,
+    scene, camera, raycaster, gl, clickMode,
     setPosition, setTargetPosition, setRotation,
     setCrashed, setSpawnMode, setSpawnIndicator, setClickIndicator
   ]);
