@@ -4,7 +4,6 @@ import {
   Switch, FormControlLabel, Alert, Slider 
 } from '@mui/material';
 import { useUAVStore } from '../store/uavStore';
-import ClickControlPanel from './ClickControlPanel'; // Add click control panel
 import { useClickControlStore } from '../store/clickControlStore';
 
 const CommandDashboard = () => {
@@ -95,7 +94,6 @@ const CommandDashboard = () => {
       )}
 
       {/* ADD CLICK CONTROL PANEL HERE */}
-      <ClickControlPanel />
 
       {/* Click-to-Move Toggle Button */}
       <Paper elevation={3} sx={{ p: 2, mb: 2, textAlign: 'center' }}>
@@ -248,6 +246,7 @@ const CommandDashboard = () => {
         
         <Box sx={{ mt: 2 }}>
           <Typography variant="body2" gutterBottom>Ground Speed: {isCrashed ? '0' : (isMoving ? '35' : '0')} km/h</Typography>
+          <Typography variant="body2" gutterBottom>Ground Speed: {isCrashed ? '0' : (isMoving ? '15' : '0')} km/h</Typography>
           <Typography variant="body2" gutterBottom color="success.main">
             ✨ Use click-to-move or slider above for control
           </Typography>

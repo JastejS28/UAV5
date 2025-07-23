@@ -228,10 +228,10 @@ const LiveCameraView = ({ portalRef }) => {
     if (terrainModel) {
       const terrainClone = terrainModel.clone(true);
       terrainClone.scale.set(100, 100, 100);
-      // Store original materials and only set shadow properties
+      // Keep original materials with textures
       terrainClone.traverse(node => {
         if (node.isMesh) {
-          // Keep the original material with textures
+          // Don't override materials - keep original textures
           node.receiveShadow = true;
           node.castShadow = true;
         }
@@ -244,13 +244,16 @@ const LiveCameraView = ({ portalRef }) => {
     if (uavModel) {
       const uavClone = uavModel.clone(true);
       uavClone.scale.set(3, 3, 3);
+      // Store original materials before any modifications
+      const originalUavMaterials = new Map();
       uavClone.traverse(node => {
         if (node.isMesh) {
-          node.material = NORMAL_MATERIALS.uav;
+          originalUavMaterials.set(node.uuid, node.material.clone());
           node.castShadow = true;
         }
       });
       instances.uav = uavClone;
+      instances.uav.originalMaterials = originalUavMaterials;
       scene.add(uavClone);
     }
 
@@ -259,13 +262,16 @@ const LiveCameraView = ({ portalRef }) => {
       const tankClone = tankModel.clone(true);
       tankClone.position.set(40, 19, 16);
       tankClone.scale.set(0.5, 0.5, 0.5);
+      // Store original materials
+      const originalTankMaterials = new Map();
       tankClone.traverse(node => {
         if (node.isMesh) {
-          node.material = NORMAL_MATERIALS.tank;
+          originalTankMaterials.set(node.uuid, node.material.clone());
           node.castShadow = true;
         }
       });
       instances.tank = tankClone;
+      instances.tank.originalMaterials = originalTankMaterials;
       scene.add(tankClone);
     }
 
@@ -274,13 +280,16 @@ const LiveCameraView = ({ portalRef }) => {
       const jeepClone = jeepModel.clone(true);
       jeepClone.position.set(40, 19, 20);
       jeepClone.scale.set(0.03, 0.03, 0.03);
+      // Store original materials
+      const originalJeepMaterials = new Map();
       jeepClone.traverse(node => {
         if (node.isMesh) {
-          node.material = NORMAL_MATERIALS.jeep;
+          originalJeepMaterials.set(node.uuid, node.material.clone());
           node.castShadow = true;
         }
       });
       instances.jeep = jeepClone;
+      instances.jeep.originalMaterials = originalJeepMaterials;
       scene.add(jeepClone);
     }
 
@@ -289,13 +298,16 @@ const LiveCameraView = ({ portalRef }) => {
       const soldierClone = soldierModel.clone(true);
       soldierClone.position.set(40, 21, 32);
       soldierClone.scale.set(0.2, 0.2, 0.2);
+      // Store original materials
+      const originalSoldierMaterials = new Map();
       soldierClone.traverse(node => {
         if (node.isMesh) {
-          node.material = NORMAL_MATERIALS.soldier;
+          originalSoldierMaterials.set(node.uuid, node.material.clone());
           node.castShadow = true;
         }
       });
       instances.soldier = soldierClone;
+      instances.soldier.originalMaterials = originalSoldierMaterials;
       scene.add(soldierClone);
     }
 
@@ -304,14 +316,17 @@ const LiveCameraView = ({ portalRef }) => {
       const warehouseClone = warehouseModel.clone(true);
       warehouseClone.position.set(40, 21, 32);
       warehouseClone.scale.set(0.7, 0.7, 0.7);
+      // Store original materials
+      const originalWarehouseMaterials = new Map();
       warehouseClone.traverse(node => {
         if (node.isMesh) {
-          node.material = NORMAL_MATERIALS.warehouse;
+          originalWarehouseMaterials.set(node.uuid, node.material.clone());
           node.castShadow = true;
           node.receiveShadow = true;
         }
       });
       instances.warehouse = warehouseClone;
+      instances.warehouse.originalMaterials = originalWarehouseMaterials;
       scene.add(warehouseClone);
     }
 
@@ -320,14 +335,17 @@ const LiveCameraView = ({ portalRef }) => {
       const armyBaseClone = armyBaseModel.clone(true);
       armyBaseClone.position.set(-45, 25, -40);
       armyBaseClone.scale.set(0.5, 0.5, 0.5);
+      // Store original materials
+      const originalArmyBaseMaterials = new Map();
       armyBaseClone.traverse(node => {
         if (node.isMesh) {
-          node.material = NORMAL_MATERIALS.armyBase;
+          originalArmyBaseMaterials.set(node.uuid, node.material.clone());
           node.castShadow = true;
           node.receiveShadow = true;
         }
       });
       instances.armyBase = armyBaseClone;
+      instances.armyBase.originalMaterials = originalArmyBaseMaterials;
       scene.add(armyBaseClone);
     }
 
