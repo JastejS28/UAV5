@@ -2,7 +2,6 @@
 
 import { useFrame } from '@react-three/fiber';
 import { useUAVStore } from '../store/uavStore';
-import { useUAVStore } from '../store/uavStore';
 import { useAttackDroneStore } from '../store/attackDroneStore';
 
 const UAVController = () => {
