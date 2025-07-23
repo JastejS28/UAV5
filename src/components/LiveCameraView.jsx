@@ -4,6 +4,7 @@ import { useGLTF } from '@react-three/drei';
 import { useUAVStore } from '../store/uavStore';
 import { useEnvironmentStore } from '../store/environmentStore';
 import { useCameraStore } from '../store/cameraStore';
+import { useAttackDroneStore } from '../store/attackDroneStore';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
@@ -12,33 +13,45 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 const DAY_SKY_COLOR = new THREE.Color(0x87CEEB);
 const NIGHT_SKY_COLOR = new THREE.Color(0x000000);
 const RAIN_SKY_COLOR = new THREE.Color(0x404050);
-const THERMAL_SKY_COLOR = new THREE.Color(0x000000);
+const THERMAL_SKY_COLOR = new THREE.Color(0x000033);
 
-// Create simple materials for the live view
-const SIMPLE_MATERIALS = {
-  // Normal view: A simple material that looks like terrain
+// Create materials for different objects in thermal view
+const THERMAL_MATERIALS = {
+  terrain: new THREE.MeshBasicMaterial({ color: 0x004400 }), // Dark green for terrain
+  uav: new THREE.MeshBasicMaterial({ color: 0xFF0000 }), // Red hot for UAV
+  tank: new THREE.MeshBasicMaterial({ color: 0xFF4400 }), // Orange-red for tank
+  jeep: new THREE.MeshBasicMaterial({ color: 0xFF6600 }), // Orange for jeep
+  soldier: new THREE.MeshBasicMaterial({ color: 0xFF8800 }), // Yellow-orange for soldier
+  warehouse: new THREE.MeshBasicMaterial({ color: 0x0066FF }), // Blue for warehouse
+  armyBase: new THREE.MeshBasicMaterial({ color: 0x0088FF }), // Light blue for army base
+};
+
+// Normal materials
+const NORMAL_MATERIALS = {
   terrain: new THREE.MeshStandardMaterial({ 
-    color: 0x7C745C,  // Beige/tan color for terrain
+    color: 0x7C745C,
     roughness: 0.8,
     metalness: 0.1
   }),
-  
-  // Base material for thermal view (will be enhanced with post-processing)
-  thermalTerrain: new THREE.MeshBasicMaterial({
-    color: 0xFFFFFF,  // White base - the shader will colorize it
-    wireframe: false
-  })
+  uav: new THREE.MeshStandardMaterial({ color: 0x333333 }),
+  tank: new THREE.MeshStandardMaterial({ color: 0x2c2c2c }),
+  jeep: new THREE.MeshStandardMaterial({ color: 0x3c3c3c }),
+  soldier: new THREE.MeshStandardMaterial({ color: 0x5a4a3a }),
+  warehouse: new THREE.MeshStandardMaterial({ color: 0x4a4a4a }),
+  armyBase: new THREE.MeshStandardMaterial({ color: 0x555555 }),
 };
 
-// Custom thermal vision shader
+// Enhanced thermal vision shader
 const ThermalShader = {
   uniforms: {
     'tDiffuse': { value: null },
     'time': { value: 0 },
-    'noiseIntensity': { value: 0.08 },
-    'contrast': { value: 2.2 },
-    'brightness': { value: 0.1 },
-    'saturation': { value: 1.4 }
+    'noiseIntensity': { value: 0.12 },
+    'contrast': { value: 3.5 },
+    'brightness': { value: 0.2 },
+    'saturation': { value: 2.0 },
+    'scanlineIntensity': { value: 0.08 },
+    'vignetteStrength': { value: 0.4 }
   },
   vertexShader: `
     varying vec2 vUv;
@@ -54,73 +67,105 @@ const ThermalShader = {
     uniform float contrast;
     uniform float brightness;
     uniform float saturation;
+    uniform float scanlineIntensity;
+    uniform float vignetteStrength;
     varying vec2 vUv;
     
-    // Simple noise function
+    // Improved noise function
     float random(vec2 st) {
       return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
     }
     
-    // Enhanced thermal color mapping with more realistic heat signatures
+    float noise(vec2 st) {
+      vec2 i = floor(st);
+      vec2 f = fract(st);
+      float a = random(i);
+      float b = random(i + vec2(1.0, 0.0));
+      float c = random(i + vec2(0.0, 1.0));
+      float d = random(i + vec2(1.0, 1.0));
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+    }
+    
+    // Realistic thermal color mapping with 9 temperature zones
     vec3 getThermalColor(float temp) {
+      temp = clamp(temp, 0.0, 1.0);
+      
       // Very cold (deep blue/purple)
-      if (temp < 0.15) return vec3(0.0, 0.0, 0.4) + vec3(temp * 0.8, 0, temp * 2.5);
+      if (temp < 0.1) return mix(vec3(0.0, 0.0, 0.3), vec3(0.0, 0.0, 0.6), temp * 10.0);
       
       // Cold (blue to cyan)
-      else if (temp < 0.3) return vec3(0.0, (temp - 0.15) * 4.0, 0.8 - (temp - 0.15) * 2.0);
+      else if (temp < 0.25) return mix(vec3(0.0, 0.0, 0.6), vec3(0.0, 0.4, 0.8), (temp - 0.1) * 6.67);
       
-      // Cool to medium (cyan to green)
-      else if (temp < 0.45) return vec3((temp - 0.3) * 2.0, 0.9, (temp - 0.3) * 1.5);
+      // Cool (cyan to green)
+      else if (temp < 0.4) return mix(vec3(0.0, 0.4, 0.8), vec3(0.0, 0.8, 0.4), (temp - 0.25) * 6.67);
+      
+      // Medium cool (green)
+      else if (temp < 0.5) return mix(vec3(0.0, 0.8, 0.4), vec3(0.2, 1.0, 0.0), (temp - 0.4) * 10.0);
       
       // Medium (green to yellow)
-      else if (temp < 0.65) return vec3((temp - 0.45) * 4.0, 1.0, 0.0);
+      else if (temp < 0.65) return mix(vec3(0.2, 1.0, 0.0), vec3(0.8, 1.0, 0.0), (temp - 0.5) * 6.67);
       
       // Warm (yellow to orange)
-      else if (temp < 0.8) return vec3(1.0, 0.9 - (temp - 0.65) * 2.0, 0.0);
+      else if (temp < 0.8) return mix(vec3(0.8, 1.0, 0.0), vec3(1.0, 0.6, 0.0), (temp - 0.65) * 6.67);
       
       // Hot (orange to red)
-      else if (temp < 0.92) return vec3(1.0, 0.4 - (temp - 0.8) * 2.5, 0.0);
+      else if (temp < 0.9) return mix(vec3(1.0, 0.6, 0.0), vec3(1.0, 0.2, 0.0), (temp - 0.8) * 10.0);
       
-      // Very hot (red to white)
-      else return vec3(1.0, (temp - 0.92) * 8.0, (temp - 0.92) * 10.0);
+      // Very hot (red to bright red)
+      else if (temp < 0.95) return mix(vec3(1.0, 0.2, 0.0), vec3(1.0, 0.0, 0.0), (temp - 0.9) * 20.0);
+      
+      // Extremely hot (red to white)
+      else return mix(vec3(1.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0), (temp - 0.95) * 20.0);
     }
     
     void main() {
       vec4 color = texture2D(tDiffuse, vUv);
       
-      // Calculate perceived brightness
+      // Calculate perceived brightness with better weighting
       float brightness = dot(color.rgb, vec3(0.299, 0.587, 0.114));
       
-      // Add brightness adjustment
-      brightness += brightness;
+      // Enhance brightness based on color intensity
+      brightness += brightness * brightness;
       
-      // Apply contrast
-      brightness = (brightness - 0.5) * contrast + 0.5;
+      // Apply contrast enhancement
+      brightness = (brightness - 0.5) * contrast + 0.5 + brightness;
       brightness = clamp(brightness, 0.0, 1.0);
       
-      // Add enhanced noise with time variation
-      float noise = random(vUv * 150.0 + time * 0.15) * noiseIntensity;
-      float timeNoise = sin(time * 3.0 + vUv.x * 20.0) * 0.02;
-      noise += timeNoise;
-      brightness += noise;
+      // Add multiple layers of noise for realism
+      float baseNoise = noise(vUv * 200.0 + time * 0.1) * noiseIntensity;
+      float fineNoise = random(vUv * 800.0 + time * 0.3) * noiseIntensity * 0.5;
+      float timeNoise = sin(time * 4.0 + vUv.x * 30.0) * 0.03;
+      
+      brightness += baseNoise + fineNoise + timeNoise;
       brightness = clamp(brightness, 0.0, 1.0);
       
-      // Get thermal color based on brightness
+      // Get thermal color
       vec3 thermalColor = getThermalColor(brightness);
       
-      // Enhanced scan lines with multiple frequencies
-      float scanline = sin(vUv.y * 250.0 + time * 3.0) * 0.04;
-      scanline += sin(vUv.y * 500.0 + time * 5.0) * 0.02;
-      thermalColor += scanline;
+      // Add realistic scan lines with multiple frequencies
+      float scanline1 = sin(vUv.y * 400.0 + time * 2.0) * scanlineIntensity;
+      float scanline2 = sin(vUv.y * 800.0 + time * 3.0) * scanlineIntensity * 0.5;
+      float scanline3 = sin(vUv.y * 1200.0 - time * 1.5) * scanlineIntensity * 0.3;
+      
+      thermalColor += scanline1 + scanline2 + scanline3;
       
       // Apply saturation enhancement
       float gray = dot(thermalColor, vec3(0.299, 0.587, 0.114));
       thermalColor = mix(vec3(gray), thermalColor, saturation);
       
-      // Add subtle vignette effect for realism
+      // Add vignette effect for authentic thermal camera look
       vec2 center = vUv - 0.5;
-      float vignette = 1.0 - dot(center, center) * 0.3;
+      float vignette = 1.0 - dot(center, center) * vignetteStrength;
       thermalColor *= vignette;
+      
+      // Add subtle chromatic aberration
+      float aberration = length(center) * 0.02;
+      thermalColor.r += aberration;
+      thermalColor.b -= aberration;
+      
+      // Final brightness adjustment
+      thermalColor = clamp(thermalColor, 0.0, 1.0);
       
       gl_FragColor = vec4(thermalColor, 1.0);
     }
@@ -137,13 +182,22 @@ const LiveCameraView = ({ portalRef }) => {
   const thermalPassRef = useRef();
   const lastTimeRef = useRef(0);
 
+  // Model references
+  const modelInstancesRef = useRef({});
+
+  // Load all models
   const { scene: terrainModel } = useGLTF('/models/mountain/terrain.glb');
-  const terrainInstanceRef = useRef(null);
+  const { scene: uavModel } = useGLTF('/models/drone/uav.glb');
+  const { scene: tankModel } = useGLTF('/models/tank/tank.glb');
+  const { scene: jeepModel } = useGLTF('/models/jeep/jeep.glb');
+  const { scene: soldierModel } = useGLTF('/models/soldier/soldier.glb');
+  const { scene: warehouseModel } = useGLTF('/models/building/warehouse.glb');
+  const { scene: armyBaseModel } = useGLTF('/models/army_base/army_base.glb');
 
   useEffect(() => {
-    if (!portalRef.current || !terrainModel) return;
+    if (!portalRef.current) return;
 
-    console.log('[LiveCameraView] Initializing live camera view');
+    console.log('[LiveCameraView] Initializing live camera view with all models');
 
     // --- Setup Canvas & Renderer ---
     const canvas = document.createElement('canvas');
@@ -157,43 +211,140 @@ const LiveCameraView = ({ portalRef }) => {
     const rect = portalRef.current.getBoundingClientRect();
     renderer.setSize(rect.width, rect.height);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     // --- Setup Scene, Camera, and Lighting ---
     const scene = customSceneRef.current;
     const camera = new THREE.PerspectiveCamera(75, rect.width / rect.height, 0.1, 10000);
     customCameraRef.current = camera;
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    
+    // Enhanced lighting for better model visibility
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
     dirLight.position.set(10, 20, 5);
+    dirLight.castShadow = true;
     scene.add(dirLight);
 
-    // --- Clone Terrain for the Live View ---
-    const terrainClone = terrainModel.clone(true);
-    terrainClone.scale.set(100, 100, 100);
-    
-    // IMPORTANT: Immediately replace ALL materials with our safe materials
-    terrainClone.traverse(node => {
-      if (node.isMesh) {
-        // Start with our simple terrain material (never store shader materials)
-        node.material = SIMPLE_MATERIALS.terrain;
-      }
-    });
-    
-    terrainInstanceRef.current = terrainClone;
-    scene.add(terrainInstanceRef.current);
+    // --- Add all models to the scene ---
+    const instances = {};
+
+    // Add terrain
+    if (terrainModel) {
+      const terrainClone = terrainModel.clone(true);
+      terrainClone.scale.set(100, 100, 100);
+      terrainClone.traverse(node => {
+        if (node.isMesh) {
+          node.material = NORMAL_MATERIALS.terrain;
+          node.receiveShadow = true;
+        }
+      });
+      instances.terrain = terrainClone;
+      scene.add(terrainClone);
+    }
+
+    // Add UAV
+    if (uavModel) {
+      const uavClone = uavModel.clone(true);
+      uavClone.scale.set(3, 3, 3);
+      uavClone.traverse(node => {
+        if (node.isMesh) {
+          node.material = NORMAL_MATERIALS.uav;
+          node.castShadow = true;
+        }
+      });
+      instances.uav = uavClone;
+      scene.add(uavClone);
+    }
+
+    // Add Tank
+    if (tankModel) {
+      const tankClone = tankModel.clone(true);
+      tankClone.position.set(40, 19, 16);
+      tankClone.scale.set(0.5, 0.5, 0.5);
+      tankClone.traverse(node => {
+        if (node.isMesh) {
+          node.material = NORMAL_MATERIALS.tank;
+          node.castShadow = true;
+        }
+      });
+      instances.tank = tankClone;
+      scene.add(tankClone);
+    }
+
+    // Add Jeep
+    if (jeepModel) {
+      const jeepClone = jeepModel.clone(true);
+      jeepClone.position.set(40, 19, 20);
+      jeepClone.scale.set(0.03, 0.03, 0.03);
+      jeepClone.traverse(node => {
+        if (node.isMesh) {
+          node.material = NORMAL_MATERIALS.jeep;
+          node.castShadow = true;
+        }
+      });
+      instances.jeep = jeepClone;
+      scene.add(jeepClone);
+    }
+
+    // Add Soldier
+    if (soldierModel) {
+      const soldierClone = soldierModel.clone(true);
+      soldierClone.position.set(40, 21, 32);
+      soldierClone.scale.set(0.2, 0.2, 0.2);
+      soldierClone.traverse(node => {
+        if (node.isMesh) {
+          node.material = NORMAL_MATERIALS.soldier;
+          node.castShadow = true;
+        }
+      });
+      instances.soldier = soldierClone;
+      scene.add(soldierClone);
+    }
+
+    // Add Warehouse
+    if (warehouseModel) {
+      const warehouseClone = warehouseModel.clone(true);
+      warehouseClone.position.set(40, 21, 32);
+      warehouseClone.scale.set(0.7, 0.7, 0.7);
+      warehouseClone.traverse(node => {
+        if (node.isMesh) {
+          node.material = NORMAL_MATERIALS.warehouse;
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      instances.warehouse = warehouseClone;
+      scene.add(warehouseClone);
+    }
+
+    // Add Army Base
+    if (armyBaseModel) {
+      const armyBaseClone = armyBaseModel.clone(true);
+      armyBaseClone.position.set(-45, 25, -40);
+      armyBaseClone.scale.set(0.5, 0.5, 0.5);
+      armyBaseClone.traverse(node => {
+        if (node.isMesh) {
+          node.material = NORMAL_MATERIALS.armyBase;
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      instances.armyBase = armyBaseClone;
+      scene.add(armyBaseClone);
+    }
+
+    modelInstancesRef.current = instances;
 
     // --- Setup Post-Processing Effects ---
-    // Create an effect composer for post-processing
     const composer = new EffectComposer(renderer);
     composerRef.current = composer;
     
-    // Add a render pass that renders the scene with the camera
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
     
-    // Add the thermal vision pass with our custom shader
     const thermalPass = new ShaderPass(ThermalShader);
-    thermalPass.enabled = false; // Start with normal vision
+    thermalPass.enabled = false;
     composer.addPass(thermalPass);
     thermalPassRef.current = thermalPass;
 
@@ -201,12 +352,12 @@ const LiveCameraView = ({ portalRef }) => {
     const animate = (time) => {
       animationFrameIdRef.current = requestAnimationFrame(animate);
       
-      const { position, rotation, isThermalVision, isCrashed } = useUAVStore.getState();
+      const { position, rotation, isThermalVision, isCrashed, droneType } = useUAVStore.getState();
+      const { destroyedTargets } = useAttackDroneStore.getState();
       const { environmentMode } = useEnvironmentStore.getState();
       const { getCurrentSettings } = useCameraStore.getState();
       const settings = getCurrentSettings();
 
-      // Calculate delta time for animations
       const deltaTime = (time - lastTimeRef.current) / 1000;
       lastTimeRef.current = time;
 
@@ -219,30 +370,55 @@ const LiveCameraView = ({ portalRef }) => {
       camera.fov = settings.fov;
       camera.updateProjectionMatrix();
 
-      // Update thermal vision effect
+      // Update UAV position and visibility
+      if (instances.uav) {
+        instances.uav.position.fromArray(position);
+        instances.uav.rotation.fromArray(rotation);
+        
+        // Show UAV only if spawned (not at default position)
+        const isSpawned = position[0] !== 0 || position[1] !== 50 || position[2] !== 0;
+        instances.uav.visible = isSpawned && (droneType === 'surveillance' || droneType === 'attack');
+      }
+
+      // Hide destroyed targets
+      destroyedTargets.forEach(targetId => {
+        if (targetId.includes('tank') && instances.tank) instances.tank.visible = false;
+        if (targetId.includes('jeep') && instances.jeep) instances.jeep.visible = false;
+        if (targetId.includes('warehouse') && instances.warehouse) instances.warehouse.visible = false;
+        if (targetId.includes('soldier') && instances.soldier) instances.soldier.visible = false;
+      });
+
+      // Update thermal vision
       if (isThermalVision) {
-        // Enable thermal shader and update its uniforms
         thermalPassRef.current.enabled = true;
         thermalPassRef.current.uniforms.time.value += deltaTime;
         
-        // Add dynamic thermal effects
-        thermalPassRef.current.uniforms.noiseIntensity.value = 0.08 + Math.sin(time * 0.5) * 0.02;
-        thermalPassRef.current.uniforms.contrast.value = 2.2 + Math.sin(time * 0.3) * 0.3;
+        // Dynamic thermal parameters for realism
+        thermalPassRef.current.uniforms.noiseIntensity.value = 0.12 + Math.sin(time * 0.001) * 0.03;
+        thermalPassRef.current.uniforms.contrast.value = 3.5 + Math.sin(time * 0.0008) * 0.5;
+        thermalPassRef.current.uniforms.scanlineIntensity.value = 0.08 + Math.sin(time * 0.002) * 0.02;
         
-        // Use a base material that works well with the thermal shader
-        terrainInstanceRef.current.traverse(node => {
-          if (node.isMesh && node.material !== SIMPLE_MATERIALS.thermalTerrain) {
-            node.material = SIMPLE_MATERIALS.thermalTerrain;
+        // Apply thermal materials to all objects
+        Object.entries(instances).forEach(([key, instance]) => {
+          if (instance && THERMAL_MATERIALS[key]) {
+            instance.traverse(node => {
+              if (node.isMesh) {
+                node.material = THERMAL_MATERIALS[key];
+              }
+            });
           }
         });
       } else {
-        // Disable thermal shader
         thermalPassRef.current.enabled = false;
         
         // Restore normal materials
-        terrainInstanceRef.current.traverse(node => {
-          if (node.isMesh && node.material !== SIMPLE_MATERIALS.terrain) {
-            node.material = SIMPLE_MATERIALS.terrain;
+        Object.entries(instances).forEach(([key, instance]) => {
+          if (instance && NORMAL_MATERIALS[key]) {
+            instance.traverse(node => {
+              if (node.isMesh) {
+                node.material = NORMAL_MATERIALS[key];
+              }
+            });
           }
         });
       }
@@ -273,7 +449,6 @@ const LiveCameraView = ({ portalRef }) => {
         overlay.remove();
       }
 
-      // Render using the composer instead of the renderer directly
       composerRef.current.render();
     };
     
@@ -286,7 +461,7 @@ const LiveCameraView = ({ portalRef }) => {
       composer.dispose();
       scene.clear();
     };
-  }, [terrainModel]);
+  }, [terrainModel, uavModel, tankModel, jeepModel, soldierModel, warehouseModel, armyBaseModel]);
 
   return null;
 };

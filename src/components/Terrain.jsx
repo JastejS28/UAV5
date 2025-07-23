@@ -1,12 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { useUAVStore } from '../store/uavStore';
-import { THERMAL_MATERIALS } from './ThermalVisionEffect';
 import * as THREE from 'three';
 
 const Terrain = () => {
   const { scene: loadedGltfScene } = useGLTF('/models/mountain/terrain.glb');
-  const { isThermalVision } = useUAVStore();
   
   const visualTerrainRef = useRef();
   const originalMaterialsRef = useRef(new Map());
@@ -24,7 +21,6 @@ const Terrain = () => {
         if (node.isMesh) {
           node.castShadow = true;
           node.receiveShadow = true;
-          originalMaterialsRef.current.set(node.uuid, node.material);
         }
       });
       visualTerrainRef.current = visualClone;
@@ -57,35 +53,6 @@ const Terrain = () => {
     }
   }, [loadedGltfScene, isInitialized]);
 
-  // Effect for handling thermal vision on the VISUAL terrain
-  useEffect(() => {
-    if (!visualTerrainRef.current) return;
-    
-    console.log('[Terrain] Updating material for thermal vision:', isThermalVision);
-    
-    visualTerrainRef.current.traverse((node) => {
-      if (node.isMesh) {
-        try {
-          if (isThermalVision) {
-            // Use simple non-shader material for thermal vision
-            if (node.material !== THERMAL_MATERIALS.terrain) {
-              node.material = THERMAL_MATERIALS.terrain;
-            }
-          } else {
-            // Restore original material
-            const originalMat = originalMaterialsRef.current.get(node.uuid);
-            if (originalMat && node.material !== originalMat) {
-              node.material = originalMat;
-            }
-          }
-        } catch (err) {
-          console.error('[Terrain] Error handling material:', err);
-          // Fallback to a safe material
-          node.material = new THREE.MeshBasicMaterial({ color: 0xcccccc });
-        }
-      }
-    });
-  }, [isThermalVision]);
 
   if (!isInitialized) return null;
 
