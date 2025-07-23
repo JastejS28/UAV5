@@ -17,6 +17,7 @@ export const useUAVStore = create(
       isCrashed: false,
       crashReason: '',
       isThermalVision: false,
+      targets: [],
       
       // Actions
       setPosition: (newPosition) => {
@@ -105,6 +106,19 @@ export const useUAVStore = create(
       setThermalVision: (enabled) => {
         if (get().isThermalVision === enabled) return;
         set({ isThermalVision: enabled });
+      },
+      
+      addTarget: (target) => {
+        const currentTargets = get().targets;
+        const exists = currentTargets.some(t => t.id === target.id);
+        if (!exists) {
+          set({ targets: [...currentTargets, target] });
+        }
+      },
+      
+      removeTarget: (targetId) => {
+        const currentTargets = get().targets;
+        set({ targets: currentTargets.filter(t => t.id !== targetId) });
       },
       
       // This method handles movement logic in one place
