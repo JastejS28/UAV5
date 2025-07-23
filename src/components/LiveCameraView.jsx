@@ -426,12 +426,12 @@ const LiveCameraView = ({ portalRef }) => {
       } else {
         thermalPassRef.current.enabled = false;
         
-        // Restore normal materials (skip terrain to keep original textures)
+        // Restore original materials for all objects
         Object.entries(instances).forEach(([key, instance]) => {
-          if (instance && NORMAL_MATERIALS[key] && key !== 'terrain') {
+          if (instance && instance.originalMaterials) {
             instance.traverse(node => {
-              if (node.isMesh) {
-                node.material = NORMAL_MATERIALS[key];
+              if (node.isMesh && instance.originalMaterials.has(node.uuid)) {
+                node.material = instance.originalMaterials.get(node.uuid);
               }
             });
           }

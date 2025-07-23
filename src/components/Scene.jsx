@@ -96,6 +96,9 @@ const SceneContent = ({ droneType }) => {
   
       {/* Add UAV Controller for advanced UAV management */}
       <UAVController />
+      
+      {/* Add Flight Path Visualizer */}
+      <FlightPathVisualizer />
     </>
   );
 };

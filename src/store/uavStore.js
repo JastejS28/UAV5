@@ -168,7 +168,8 @@ export const useUAVStore = create(
             // Snap to target and clear it
             set({ 
               position: [...targetPosition], 
-              targetPosition: null 
+              targetPosition: null,
+              flightPath: [] // Clear flight path when target reached
             });
           }
         } finally {
