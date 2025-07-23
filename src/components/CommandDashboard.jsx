@@ -71,10 +71,10 @@ const CommandDashboard = () => {
       const newTarget = [targetPosition[0], newValue, targetPosition[2]];
       setTargetPosition(newTarget);
     }
-    
-    setTimeout(() => {
-      isUpdatingFromSlider.current = false;
-    }, 50);
+  };
+
+  const handleAltitudeChangeCommitted = (event, newValue) => {
+    isUpdatingFromSlider.current = false;
   };
 
   return (
@@ -153,6 +153,7 @@ const CommandDashboard = () => {
           <Slider
             value={altitudeSlider}
             onChange={handleAltitudeChange}
+            onChangeCommitted={handleAltitudeChangeCommitted}
             min={10}
             max={50}
             step={0.5}
