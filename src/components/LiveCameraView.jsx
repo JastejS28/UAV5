@@ -13,17 +13,17 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 const DAY_SKY_COLOR = new THREE.Color(0xF2F4F7);
 const NIGHT_SKY_COLOR = new THREE.Color(0x000000);
 const RAIN_SKY_COLOR = new THREE.Color(0x8B7D6B); // Darker beige for rain
-const THERMAL_SKY_COLOR = new THREE.Color(0x001122); // Darker blue-black for thermal
+const THERMAL_SKY_COLOR = new THREE.Color(0x001100); // Dark green for thermal background
 
 // Create materials for different objects in thermal view
 const THERMAL_MATERIALS = {
-  terrain: new THREE.MeshBasicMaterial({ color: 0x226622 }), // Medium green for terrain
-  uav: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0x444400 }), // Bright yellow for UAV
-  tank: new THREE.MeshBasicMaterial({ color: 0xFF6600, emissive: 0x442200 }), // Bright orange for tank
-  jeep: new THREE.MeshBasicMaterial({ color: 0xFF8800, emissive: 0x443300 }), // Bright yellow-orange for jeep
-  soldier: new THREE.MeshBasicMaterial({ color: 0xFFAA00, emissive: 0x443300 }), // Bright yellow for soldier
-  warehouse: new THREE.MeshBasicMaterial({ color: 0x4488FF, emissive: 0x002244 }), // Bright blue for warehouse
-  armyBase: new THREE.MeshBasicMaterial({ color: 0x66AAFF, emissive: 0x003366 }), // Bright light blue for army base
+  terrain: new THREE.MeshBasicMaterial({ color: 0x004400 }), // Dark green for terrain
+  uav: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0xFFFF00, emissiveIntensity: 0.8 }), // Bright yellow for UAV
+  tank: new THREE.MeshBasicMaterial({ color: 0xFF6600, emissive: 0xFF6600, emissiveIntensity: 0.8 }), // Bright orange for tank
+  jeep: new THREE.MeshBasicMaterial({ color: 0xFF8800, emissive: 0xFF8800, emissiveIntensity: 0.8 }), // Bright yellow-orange for jeep
+  soldier: new THREE.MeshBasicMaterial({ color: 0xFFAA00, emissive: 0xFFAA00, emissiveIntensity: 0.8 }), // Bright yellow for soldier
+  warehouse: new THREE.MeshBasicMaterial({ color: 0xFF4400, emissive: 0xFF4400, emissiveIntensity: 0.6 }), // Bright red-orange for warehouse
+  armyBase: new THREE.MeshBasicMaterial({ color: 0xFF6600, emissive: 0xFF6600, emissiveIntensity: 0.6 }), // Bright orange for army base
 };
 
 // Normal materials
@@ -41,12 +41,10 @@ const ThermalShader = {
   uniforms: {
     'tDiffuse': { value: null },
     'time': { value: 0 },
-    'noiseIntensity': { value: 0.12 },
-    'contrast': { value: 3.5 },
-    'brightness': { value: 0.2 },
-    'saturation': { value: 2.0 },
-    'scanlineIntensity': { value: 0.08 },
-    'vignetteStrength': { value: 0.4 }
+    'noiseIntensity': { value: 0.05 },
+    'contrast': { value: 2.0 },
+    'brightness': { value: 0.3 },
+    'thermalIntensity': { value: 1.5 }
   },
   vertexShader: `
     varying vec2 vUv;
@@ -61,106 +59,69 @@ const ThermalShader = {
     uniform float noiseIntensity;
     uniform float contrast;
     uniform float brightness;
-    uniform float saturation;
-    uniform float scanlineIntensity;
-    uniform float vignetteStrength;
+    uniform float thermalIntensity;
     varying vec2 vUv;
     
-    // Improved noise function
+    // Simple noise function
     float random(vec2 st) {
       return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
     }
     
-    float noise(vec2 st) {
-      vec2 i = floor(st);
-      vec2 f = fract(st);
-      float a = random(i);
-      float b = random(i + vec2(1.0, 0.0));
-      float c = random(i + vec2(0.0, 1.0));
-      float d = random(i + vec2(1.0, 1.0));
-      vec2 u = f * f * (3.0 - 2.0 * f);
-      return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
-    }
-    
-    // Realistic thermal color mapping with 9 temperature zones
+    // Thermal color mapping like your reference image
     vec3 getThermalColor(float temp) {
       temp = clamp(temp, 0.0, 1.0);
       
-      // Very cold (deep blue/purple)
-      if (temp < 0.1) return mix(vec3(0.0, 0.1, 0.2), vec3(0.0, 0.2, 0.4), temp * 10.0);
-      
-      // Cold (blue to cyan)
-      else if (temp < 0.25) return mix(vec3(0.0, 0.2, 0.4), vec3(0.0, 0.5, 0.7), (temp - 0.1) * 6.67);
-      
-      // Cool (cyan to green)
-      else if (temp < 0.4) return mix(vec3(0.0, 0.5, 0.7), vec3(0.2, 0.8, 0.3), (temp - 0.25) * 6.67);
-      
-      // Medium cool (green)
-      else if (temp < 0.5) return mix(vec3(0.2, 0.8, 0.3), vec3(0.4, 1.0, 0.2), (temp - 0.4) * 10.0);
-      
-      // Medium (green to yellow)
-      else if (temp < 0.65) return mix(vec3(0.4, 1.0, 0.2), vec3(0.9, 1.0, 0.1), (temp - 0.5) * 6.67);
-      
-      // Warm (yellow to orange)
-      else if (temp < 0.8) return mix(vec3(0.9, 1.0, 0.1), vec3(1.0, 0.7, 0.0), (temp - 0.65) * 6.67);
-      
-      // Hot (orange to red)
-      else if (temp < 0.9) return mix(vec3(1.0, 0.7, 0.0), vec3(1.0, 0.3, 0.0), (temp - 0.8) * 10.0);
-      
-      // Very hot (red to bright red)
-      else if (temp < 0.95) return mix(vec3(1.0, 0.3, 0.0), vec3(1.0, 0.1, 0.0), (temp - 0.9) * 20.0);
-      
-      // Extremely hot (red to white)
-      else return mix(vec3(1.0, 0.1, 0.0), vec3(1.0, 1.0, 0.8), (temp - 0.95) * 20.0);
+      // Cold areas (dark green to green)
+      if (temp < 0.2) {
+        return mix(vec3(0.0, 0.2, 0.0), vec3(0.0, 0.5, 0.0), temp * 5.0);
+      }
+      // Cool areas (green to bright green)
+      else if (temp < 0.4) {
+        return mix(vec3(0.0, 0.5, 0.0), vec3(0.2, 0.8, 0.2), (temp - 0.2) * 5.0);
+      }
+      // Medium areas (green to yellow-green)
+      else if (temp < 0.6) {
+        return mix(vec3(0.2, 0.8, 0.2), vec3(0.6, 1.0, 0.0), (temp - 0.4) * 5.0);
+      }
+      // Warm areas (yellow-green to yellow)
+      else if (temp < 0.75) {
+        return mix(vec3(0.6, 1.0, 0.0), vec3(1.0, 1.0, 0.0), (temp - 0.6) * 6.67);
+      }
+      // Hot areas (yellow to orange)
+      else if (temp < 0.9) {
+        return mix(vec3(1.0, 1.0, 0.0), vec3(1.0, 0.5, 0.0), (temp - 0.75) * 6.67);
+      }
+      // Very hot areas (orange to red)
+      else {
+        return mix(vec3(1.0, 0.5, 0.0), vec3(1.0, 0.0, 0.0), (temp - 0.9) * 10.0);
+      }
     }
     
     void main() {
       vec4 color = texture2D(tDiffuse, vUv);
       
-      // Calculate perceived brightness with better weighting
+      // Calculate brightness
       float brightness = dot(color.rgb, vec3(0.299, 0.587, 0.114));
       
-      // Enhance brightness based on color intensity
-      brightness += brightness * brightness;
+      // Boost brightness for thermal effect
+      brightness = brightness * thermalIntensity + brightness;
       
-      // Apply contrast enhancement
+      // Apply contrast
       brightness = (brightness - 0.5) * contrast + 0.5 + brightness;
       brightness = clamp(brightness, 0.0, 1.0);
       
-      // Add multiple layers of noise for realism
-      float baseNoise = noise(vUv * 200.0 + time * 0.1) * noiseIntensity;
-      float fineNoise = random(vUv * 800.0 + time * 0.3) * noiseIntensity * 0.5;
-      float timeNoise = sin(time * 4.0 + vUv.x * 30.0) * 0.03;
+      // Add subtle noise
+      float noise = random(vUv * 100.0 + time * 0.1) * noiseIntensity;
+      brightness += noise;
       
-      brightness += baseNoise + fineNoise + timeNoise;
       brightness = clamp(brightness, 0.0, 1.0);
       
       // Get thermal color
       vec3 thermalColor = getThermalColor(brightness);
       
-      // Add realistic scan lines with multiple frequencies
-      float scanline1 = sin(vUv.y * 400.0 + time * 2.0) * scanlineIntensity;
-      float scanline2 = sin(vUv.y * 800.0 + time * 3.0) * scanlineIntensity * 0.5;
-      float scanline3 = sin(vUv.y * 1200.0 - time * 1.5) * scanlineIntensity * 0.3;
-      
-      thermalColor += scanline1 + scanline2 + scanline3;
-      
-      // Apply saturation enhancement
-      float gray = dot(thermalColor, vec3(0.299, 0.587, 0.114));
-      thermalColor = mix(vec3(gray), thermalColor, saturation);
-      
-      // Add vignette effect for authentic thermal camera look
-      vec2 center = vUv - 0.5;
-      float vignette = 1.0 - dot(center, center) * vignetteStrength;
-      thermalColor *= vignette;
-      
-      // Add subtle chromatic aberration
-      float aberration = length(center) * 0.02;
-      thermalColor.r += aberration;
-      thermalColor.b -= aberration;
-      
-      // Final brightness adjustment
-      thermalColor = clamp(thermalColor, 0.0, 1.0);
+      // Add scan lines for thermal camera effect
+      float scanline = sin(vUv.y * 300.0 + time * 2.0) * 0.05;
+      thermalColor += scanline;
       
       gl_FragColor = vec4(thermalColor, 1.0);
     }
@@ -408,10 +369,10 @@ const LiveCameraView = ({ portalRef }) => {
         thermalPassRef.current.enabled = true;
         thermalPassRef.current.uniforms.time.value += deltaTime;
         
-        // Dynamic thermal parameters for realism
-        thermalPassRef.current.uniforms.noiseIntensity.value = 0.12 + Math.sin(time * 0.001) * 0.03;
-        thermalPassRef.current.uniforms.contrast.value = 3.5 + Math.sin(time * 0.0008) * 0.5;
-        thermalPassRef.current.uniforms.scanlineIntensity.value = 0.08 + Math.sin(time * 0.002) * 0.02;
+        // Simpler thermal parameters
+        thermalPassRef.current.uniforms.noiseIntensity.value = 0.05;
+        thermalPassRef.current.uniforms.contrast.value = 2.0;
+        thermalPassRef.current.uniforms.thermalIntensity.value = 1.5;
         
         // Apply thermal materials to all objects
         Object.entries(instances).forEach(([key, instance]) => {
