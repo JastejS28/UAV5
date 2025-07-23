@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
 import { useUAVStore } from './uavStore';
+import { useMissionStore } from './missionStore';
 
 export const useAttackDroneStore = create((set, get) => ({
   // Basic targeting data
@@ -383,7 +384,11 @@ export const useAttackDroneStore = create((set, get) => ({
     const updatedDestroyedTargets = [...destroyedTargets, targetId];
     set({ destroyedTargets: updatedDestroyedTargets });
     
-   
+    // Update mission store with target destruction
+    const missionStore = useMissionStore.getState();
+    if (missionStore.missionStatus === 'active') {
+      missionStore.incrementTargetsDestroyed();
+    }
     
     console.log(`Target destroyed: ${targetId} (${targetToDestroy.type})`);
   },

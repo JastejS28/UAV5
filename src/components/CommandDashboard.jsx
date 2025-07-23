@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { useUAVStore } from '../store/uavStore';
 import { useClickControlStore } from '../store/clickControlStore';
+import { useMissionStore } from '../store/missionStore';
 
 const CommandDashboard = () => {
   const { 
@@ -15,15 +16,41 @@ const CommandDashboard = () => {
   } = useUAVStore();
   
   const { clickMode, toggleMoveMode } = useClickControlStore();
+  const { updateSurveillanceTime, missionStatus, objectives } = useMissionStore();
   
   const [coordinates, setCoordinates] = useState({ x: '', y: '', z: '' });
   const [altitudeSlider, setAltitudeSlider] = useState(position[1]);
   const isUpdatingFromSlider = useRef(false);
   const lastPositionY = useRef(position[1]); // Initialize with current position
   const lastUpdateTime = useRef(Date.now()); // Add throttling
+  const lastSurveillanceUpdate = useRef(Date.now());
 
   // Check if UAV is currently moving
   const isMoving = targetPosition && Array.isArray(targetPosition);
+  
+  // Update surveillance time when in target area
+  useEffect(() => {
+    if (missionStatus === 'active' && targets && targets.length > 0) {
+      const now = Date.now();
+      const deltaTime = (now - lastSurveillanceUpdate.current) / 1000;
+      
+      // Check if UAV is near any target (within surveillance range)
+      const isInSurveillanceRange = targets.some(target => {
+        const distance = Math.sqrt(
+          Math.pow(target.position[0] - position[0], 2) +
+          Math.pow(target.position[1] - position[1], 2) +
+          Math.pow(target.position[2] - position[2], 2)
+        );
+        return distance < 25; // 25 unit surveillance range
+      });
+      
+      if (isInSurveillanceRange) {
+        updateSurveillanceTime(deltaTime);
+      }
+      
+      lastSurveillanceUpdate.current = now;
+    }
+  }, [position, targets, missionStatus, updateSurveillanceTime]);
 
   // Update slider when position changes - with throttling to prevent loops
   React.useEffect(() => {
@@ -131,6 +158,11 @@ const CommandDashboard = () => {
         <Typography variant="h6" gutterBottom>
           🛸 UAV Status
         </Typography>
+        {missionStatus === 'active' && (
+          <Typography variant="body2" color="primary" gutterBottom>
+            Mission Active - Surveillance: {Math.floor(objectives.surveillanceTime)}s / {objectives.requiredSurveillanceTime}s
+          </Typography>
+        )}
         <Typography variant="body2" color={isCrashed ? 'error' : 'inherit'}>
           Status: {isCrashed ? '💥 CRASHED - TERMINATED' : (isMoving ? '🚁 Moving to Target' : '✅ Stationary')}
         </Typography>

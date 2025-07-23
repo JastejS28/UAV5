@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useUAVStore } from '../../store/uavStore';
 import { useAttackDroneStore } from '../../store/attackDroneStore';
+import { useMissionStore } from '../../store/missionStore';
 import DefenseRadar from './DefenseRadar';
 import AntiAircraftGun from './AntiAircraftGun';
 import DefenseProjectile from './DefenseProjectile';
@@ -14,6 +15,7 @@ const MIN_SAFE_ALTITUDE = 20; // Below this height, UAV is undetectable
 const AntiDroneSystem = ({ position, baseId }) => {
   const { position: uavPosition, droneType } = useUAVStore();
   const { missionState, setDroneDamage } = useAttackDroneStore();
+  const { incrementDetectionEvents, missionStatus } = useMissionStore();
   
   const [isUavDetected, setIsUavDetected] = useState(false);
   const [isDefenseActive, setIsDefenseActive] = useState(false);
@@ -23,6 +25,7 @@ const AntiDroneSystem = ({ position, baseId }) => {
   const lastFireTime = useRef(Date.now()); // Initialize to prevent immediate fire on mount
   const lastBombTime = useRef(Date.now()); // Initialize to prevent immediate fire on mount
   const defenseSystemActive = useRef(true);
+  const lastDetectionState = useRef(false);
   
   // Check for UAV detection
   useEffect(() => {
@@ -45,10 +48,20 @@ const AntiDroneSystem = ({ position, baseId }) => {
     
     if (isDetected && !isUavDetected) { // UAV just got detected
         console.log("[AntiDroneSystem] UAV DETECTED at", uavPosition, "Distance:", distance.toFixed(2));
+        
+        // Increment detection events in mission store
+        if (missionStatus === 'active') {
+          incrementDetectionEvents();
+        }
     } else if (!isDetected && isUavDetected) { // UAV just got lost
         console.log("[AntiDroneSystem] UAV LOST. Was at", targetPosition);
     }
     setIsUavDetected(isDetected);
+    
+    // Track detection state changes for mission
+    if (isDetected !== lastDetectionState.current) {
+      lastDetectionState.current = isDetected;
+    }
     
     if (isDetected && defenseSystemActive.current) {
       if (!isDefenseActive) {
