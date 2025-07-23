@@ -23,6 +23,7 @@ import TerrainClickHandler from './TerrainClickHandler'; // Add click handler
 import ClickIndicators from './ClickIndicators'; // Add visual indicators
 import LiveCameraView from './LiveCameraView'; // Import the new LiveCameraView
 import UAVController from './UAVController'; // Import the UAV controller
+import FlightPathVisualizer from './FlightPathVisualizer'; // Import flight path visualizer
 
 // Create a component to handle the scene content inside Canvas
 const SceneContent = ({ droneType }) => {
