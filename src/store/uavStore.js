@@ -20,10 +20,12 @@ export const useUAVStore = create(
       position: [0, 50, 0],
       rotation: [0, 0, 0],
       targetPosition: null,
-      speed: 0.5,
+      speed: 0.3,
       isCrashed: false,
       crashReason: '',
       isThermalVision: false,
+      droneType: 'surveillance', // Add drone type to UAV store
+      targets: [], // Add targets array
       
       // Actions
       setPosition: (newPosition) => {
@@ -89,6 +91,11 @@ export const useUAVStore = create(
       setThermalVision: (enabled) => {
         if (get().isThermalVision === enabled) return;
         set({ isThermalVision: enabled });
+      },
+      
+      setDroneType: (type) => {
+        if (get().droneType === type) return;
+        set({ droneType: type });
       },
       
       addTarget: (target) => {

@@ -26,10 +26,15 @@ import UAVController from './UAVController'; // Import the UAV controller
 import FlightPathVisualizer from './FlightPathVisualizer'; // Import flight path visualizer
 
 // Create a component to handle the scene content inside Canvas
-const SceneContent = ({ droneType }) => {
+const SceneContent = ({ droneType: propDroneType }) => {
   const { environmentMode } = useEnvironmentStore();
   const { cameraMode } = useCameraStore();
-  const { position } = useUAVStore(); // Get position from store
+  const { position, setDroneType } = useUAVStore(); // Get position from store
+  
+  // Update drone type in UAV store when prop changes
+  React.useEffect(() => {
+    setDroneType(propDroneType);
+  }, [propDroneType, setDroneType]);
   
   // Check if UAV has been spawned yet (not at default position)
   const hasSpawned = position[0] !== 0 || position[1] !== 50 || position[2] !== 0;
@@ -90,8 +95,8 @@ const SceneContent = ({ droneType }) => {
       {/* Only render the UAV if it has been spawned */}
       {hasSpawned && (
         <>
-          {droneType === 'surveillance' && <UAV />}
-          {droneType === 'attack' && <AttackUAV />}
+          {propDroneType === 'surveillance' && <UAV />}
+          {propDroneType === 'attack' && <AttackUAV />}
         </>
       )}
   
