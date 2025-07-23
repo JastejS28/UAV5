@@ -369,24 +369,19 @@ const LiveCameraView = ({ portalRef }) => {
         thermalPassRef.current.enabled = true;
         thermalPassRef.current.uniforms.time.value += deltaTime;
         
-        // Simpler thermal parameters
-        thermalPassRef.current.uniforms.noiseIntensity.value = 0.05;
-        thermalPassRef.current.uniforms.contrast.value = 2.0;
-        thermalPassRef.current.uniforms.thermalIntensity.value = 1.5;
+        // Enhanced thermal parameters for better terrain variation
+        thermalPassRef.current.uniforms.noiseIntensity.value = 0.15;
+        thermalPassRef.current.uniforms.contrast.value = 3.0;
+        thermalPassRef.current.uniforms.thermalIntensity.value = 2.5;
         
         // Apply thermal materials to all objects
         Object.entries(instances).forEach(([key, instance]) => {
           if (instance && THERMAL_MATERIALS[key]) {
             instance.traverse(node => {
               if (node.isMesh) {
-                // For terrain, keep original material to show texture variation
-                if (key === 'terrain') {
-                  // Keep original terrain material but make it slightly warmer
-                  if (node.material.color) {
-                    node.material.color.setHex(0x004400); // Dark green base
-                  }
-                } else {
-                  // Use bright thermal materials for models
+                // Use bright thermal materials for models only
+                // Terrain thermal effect will be handled by the shader
+                if (key !== 'terrain') {
                   node.material = THERMAL_MATERIALS[key];
                 }
               }
