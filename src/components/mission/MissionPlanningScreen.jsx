@@ -25,7 +25,6 @@ import {
   Visibility as SurveillanceIcon,
   RocketLaunch as AttackIcon,
   Schedule as TimeIcon,
-  LocationOn as LocationIcon,
   Inventory as PayloadIcon,
   Add as AddIcon,
   Remove as RemoveIcon,
@@ -38,24 +37,14 @@ const MissionPlanningScreen = ({ onStartMission }) => {
   const {
     missionType,
     missionDuration,
-    targetArea,
     selectedPayload,
-    travelTime,
-    operationalTime,
     objectives,
     setMissionType,
     setMissionDuration,
-    setTargetArea,
     setPayload,
     isMissionValid
   } = useMissionStore();
 
-  const [targetCoords, setTargetCoords] = useState({ x: 40, y: 25, z: 35 });
-
-  // Update target area when coordinates change
-  useEffect(() => {
-    setTargetArea([targetCoords.x, targetCoords.y, targetCoords.z]);
-  }, [targetCoords, setTargetArea]);
 
   const handlePayloadChange = (type, delta) => {
     const newPayload = {
@@ -74,37 +63,14 @@ const MissionPlanningScreen = ({ onStartMission }) => {
   const getMissionDescription = () => {
     switch (missionType) {
       case 'surveillance':
-        return 'Conduct covert surveillance of the target area. Avoid detection while gathering intelligence for the specified duration.';
+        return 'Fly over the terrain to discover targets, then hover above them to gather intelligence. Avoid detection while completing surveillance objectives.';
       case 'surveillance-attack':
-        return 'First conduct surveillance to identify targets, then engage and destroy specified objectives. Mission requires both stealth and precision.';
+        return 'Discover and hover above targets for surveillance, then engage and destroy them. Mission requires both stealth and precision.';
       default:
         return 'Select a mission type to see objectives.';
     }
   };
 
-  const getTimeValidation = () => {
-    if (operationalTime <= 0) {
-      return {
-        valid: false,
-        message: 'Mission duration too short for travel time. Increase duration or choose closer target.'
-      };
-    }
-    
-    const requiredTime = missionType === 'surveillance' ? 120 : 90; // Surveillance needs more time
-    if (operationalTime < requiredTime) {
-      return {
-        valid: false,
-        message: `Insufficient operational time. Need at least ${formatTime(requiredTime)} for mission objectives.`
-      };
-    }
-    
-    return {
-      valid: true,
-      message: `${formatTime(operationalTime)} available for operations.`
-    };
-  };
-
-  const timeValidation = getTimeValidation();
 
   return (
     <Box sx={{ 
@@ -127,13 +93,13 @@ const MissionPlanningScreen = ({ onStartMission }) => {
             Mission Planning & Setup
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            Configure your UAV mission parameters and objectives
+            Configure your UAV mission - discover targets by flying over terrain and hover above them for surveillance
           </Typography>
         </Paper>
 
         <Grid container spacing={3}>
           {/* Mission Type Selection */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={8}>
             <Card sx={{ bgcolor: 'rgba(0,0,0,0.8)', border: '1px solid #333', height: '100%' }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -155,7 +121,7 @@ const MissionPlanningScreen = ({ onStartMission }) => {
                             Surveillance Mission
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Stealth reconnaissance - avoid detection while gathering intel
+                            Discover targets and hover above them to gather intelligence
                           </Typography>
                         </Box>
                       }
@@ -170,7 +136,7 @@ const MissionPlanningScreen = ({ onStartMission }) => {
                             Surveillance & Attack
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Recon followed by precision strikes on identified targets
+                            Hover for surveillance, then destroy identified targets
                           </Typography>
                         </Box>
                       }
@@ -192,7 +158,7 @@ const MissionPlanningScreen = ({ onStartMission }) => {
           </Grid>
 
           {/* Time & Resource Management */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={4}>
             <Card sx={{ bgcolor: 'rgba(0,0,0,0.8)', border: '1px solid #333', height: '100%' }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -202,122 +168,37 @@ const MissionPlanningScreen = ({ onStartMission }) => {
 
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Total Mission Duration (minutes)
+                    Mission Duration (seconds)
                   </Typography>
                   <Slider
-                    value={missionDuration / 60}
-                    onChange={(e, value) => setMissionDuration(value * 60)}
-                    min={3}
-                    max={20}
-                    step={0.5}
+                    value={missionDuration}
+                    onChange={(e, value) => setMissionDuration(value)}
+                    min={30}
+                    max={300}
+                    step={10}
                     marks={[
-                      { value: 3, label: '3m' },
-                      { value: 10, label: '10m' },
-                      { value: 20, label: '20m' }
+                      { value: 30, label: '30s' },
+                      { value: 60, label: '1m' },
+                      { value: 120, label: '2m' },
+                      { value: 300, label: '5m' }
                     ]}
                     valueLabelDisplay="on"
-                    valueLabelFormat={(value) => `${value}m`}
+                    valueLabelFormat={(value) => `${value}s`}
                     sx={{ color: '#ff9800' }}
                   />
                 </Box>
 
                 <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', p: 2, borderRadius: 1 }}>
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        Travel Time
-                      </Typography>
-                      <Typography variant="h6" color="#ff9800">
-                        {formatTime(travelTime)}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        Operational Time
-                      </Typography>
-                      <Typography variant="h6" color={timeValidation.valid ? '#4caf50' : '#f44336'}>
-                        {formatTime(operationalTime)}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                  
-                  <Alert 
-                    severity={timeValidation.valid ? 'success' : 'warning'}
-                    sx={{ mt: 2 }}
-                  >
-                    {timeValidation.message}
-                  </Alert>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Target Area Selection */}
-          <Grid item xs={12} md={6}>
-            <Card sx={{ bgcolor: 'rgba(0,0,0,0.8)', border: '1px solid #333' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <LocationIcon sx={{ mr: 1, color: '#4caf50' }} />
-                  <Typography variant="h6">Target Area</Typography>
-                </Box>
-
-                <Grid container spacing={2}>
-                  <Grid item xs={4}>
-                    <TextField
-                      label="X Coordinate"
-                      type="number"
-                      value={targetCoords.x}
-                      onChange={(e) => setTargetCoords(prev => ({ ...prev, x: parseFloat(e.target.value) || 0 }))}
-                      fullWidth
-                      size="small"
-                      inputProps={{ min: -50, max: 50 }}
-                    />
-                  </Grid>
-                  <Grid item xs={4}>
-                    <TextField
-                      label="Y Altitude"
-                      type="number"
-                      value={targetCoords.y}
-                      onChange={(e) => setTargetCoords(prev => ({ ...prev, y: parseFloat(e.target.value) || 0 }))}
-                      fullWidth
-                      size="small"
-                      inputProps={{ min: 15, max: 100 }}
-                    />
-                  </Grid>
-                  <Grid item xs={4}>
-                    <TextField
-                      label="Z Coordinate"
-                      type="number"
-                      value={targetCoords.z}
-                      onChange={(e) => setTargetCoords(prev => ({ ...prev, z: parseFloat(e.target.value) || 0 }))}
-                      fullWidth
-                      size="small"
-                      inputProps={{ min: -50, max: 50 }}
-                    />
-                  </Grid>
-                </Grid>
-
-                <Box sx={{ mt: 2 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Preset Locations:
+                    Total Mission Time
                   </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-                    <Chip
-                      label="Warehouse District"
-                      onClick={() => setTargetCoords({ x: 40, y: 25, z: 35 })}
-                      sx={{ cursor: 'pointer' }}
-                    />
-                    <Chip
-                      label="Army Base"
-                      onClick={() => setTargetCoords({ x: -45, y: 30, z: -40 })}
-                      sx={{ cursor: 'pointer' }}
-                    />
-                    <Chip
-                      label="Central Valley"
-                      onClick={() => setTargetCoords({ x: 0, y: 20, z: 0 })}
-                      sx={{ cursor: 'pointer' }}
-                    />
-                  </Box>
+                  <Typography variant="h6" color="#ff9800">
+                    {formatTime(missionDuration)}
+                  </Typography>
+                  
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    Time includes travel to targets, hovering for surveillance, and return to base
+                  </Alert>
                 </Box>
               </CardContent>
             </Card>
@@ -413,6 +294,42 @@ const MissionPlanningScreen = ({ onStartMission }) => {
             </Card>
           </Grid>
 
+          {/* Mission Instructions */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ bgcolor: 'rgba(0,0,0,0.8)', border: '1px solid #333' }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  📋 Mission Instructions
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Alert severity="info">
+                    <Typography variant="body2" fontWeight="bold" gutterBottom>
+                      How to Complete Your Mission:
+                    </Typography>
+                    <Typography variant="body2" component="div">
+                      1. <strong>Spawn UAV:</strong> Click on terrain to deploy your drone<br/>
+                      2. <strong>Explore:</strong> Fly over the terrain to discover targets<br/>
+                      3. <strong>Hover:</strong> UAV will automatically hover above detected targets<br/>
+                      4. <strong>Return:</strong> Mission ends when time expires or objectives complete
+                    </Typography>
+                  </Alert>
+                  
+                  <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', p: 2, borderRadius: 1 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Time Management:
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Total time includes travel, hovering, and return to base<br/>
+                      • Base location: [-45, 30, -45]<br/>
+                      • UAV automatically calculates optimal time allocation
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
           {/* Mission Summary & Start */}
           <Grid item xs={12}>
             <Card sx={{ bgcolor: 'rgba(0,0,0,0.8)', border: '1px solid #333' }}>
@@ -436,13 +353,10 @@ const MissionPlanningScreen = ({ onStartMission }) => {
                         label={`${formatTime(missionDuration)} total`}
                         color="secondary"
                       />
-                      {targetArea && (
-                        <Chip
-                          icon={<LocationIcon />}
-                          label={`Target: [${targetArea.map(n => Math.round(n)).join(', ')}]`}
-                          color="success"
-                        />
-                      )}
+                      <Chip
+                        label="Discover targets by flying"
+                        color="success"
+                      />
                     </Box>
 
                     {missionType && (
@@ -453,13 +367,13 @@ const MissionPlanningScreen = ({ onStartMission }) => {
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                           {missionType === 'surveillance' && (
                             <Typography variant="body2">
-                              • Complete {formatTime(objectives.requiredSurveillanceTime)} of surveillance
+                              • Hover above targets for {formatTime(objectives.requiredSurveillanceTime)} total
                             </Typography>
                           )}
                           {missionType === 'surveillance-attack' && (
                             <>
                               <Typography variant="body2">
-                                • Complete {formatTime(objectives.requiredSurveillanceTime)} of surveillance
+                                • Hover above targets for {formatTime(objectives.requiredSurveillanceTime)} total
                               </Typography>
                               <Typography variant="body2">
                                 • Destroy {objectives.requiredTargetsDestroyed} enemy targets

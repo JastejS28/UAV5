@@ -183,8 +183,8 @@ const MissionResultsScreen = ({ onRestart, onNewMission }) => {
                       )}
                     </ListItemIcon>
                     <ListItemText
-                      primary="Surveillance"
-                      secondary={`${formatTime(objectives.surveillanceTime)} / ${formatTime(objectives.requiredSurveillanceTime)} required`}
+                      primary="Target Surveillance"
+                      secondary={`${formatTime(objectives.hoverTime)} / ${formatTime(objectives.requiredSurveillanceTime)} required`}
                     />
                   </ListItem>
                   

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { useEffect } from 'react';
 import { 
   Box, Paper, Typography, Button, TextField, Chip, 
   Switch, FormControlLabel, Alert, Slider 
@@ -16,42 +17,17 @@ const CommandDashboard = () => {
   } = useUAVStore();
   
   const { clickMode, toggleMoveMode } = useClickControlStore();
-  const { updateSurveillanceTime, missionStatus, objectives } = useMissionStore();
+  const { missionStatus, objectives, isHovering, currentTarget } = useMissionStore();
   
   const [coordinates, setCoordinates] = useState({ x: '', y: '', z: '' });
   const [altitudeSlider, setAltitudeSlider] = useState(position[1]);
   const isUpdatingFromSlider = useRef(false);
   const lastPositionY = useRef(position[1]); // Initialize with current position
   const lastUpdateTime = useRef(Date.now()); // Add throttling
-  const lastSurveillanceUpdate = useRef(Date.now());
 
   // Check if UAV is currently moving
   const isMoving = targetPosition && Array.isArray(targetPosition);
   
-  // Update surveillance time when in target area
-  useEffect(() => {
-    if (missionStatus === 'active' && targets && targets.length > 0) {
-      const now = Date.now();
-      const deltaTime = (now - lastSurveillanceUpdate.current) / 1000;
-      
-      // Check if UAV is near any target (within surveillance range)
-      const isInSurveillanceRange = targets.some(target => {
-        const distance = Math.sqrt(
-          Math.pow(target.position[0] - position[0], 2) +
-          Math.pow(target.position[1] - position[1], 2) +
-          Math.pow(target.position[2] - position[2], 2)
-        );
-        return distance < 25; // 25 unit surveillance range
-      });
-      
-      if (isInSurveillanceRange) {
-        updateSurveillanceTime(deltaTime);
-      }
-      
-      lastSurveillanceUpdate.current = now;
-    }
-  }, [position, targets, missionStatus, updateSurveillanceTime]);
-
   // Update slider when position changes - with throttling to prevent loops
   React.useEffect(() => {
     const now = Date.now();
@@ -160,15 +136,22 @@ const CommandDashboard = () => {
         </Typography>
         {missionStatus === 'active' && (
           <Typography variant="body2" color="primary" gutterBottom>
-            Mission Active - Surveillance: {Math.floor(objectives.surveillanceTime)}s / {objectives.requiredSurveillanceTime}s
+            Mission Active - Hover Time: {Math.floor(objectives.hoverTime)}s / {objectives.requiredSurveillanceTime}s
+          </Typography>
+        )}
+        {isHovering && currentTarget && (
+          <Typography variant="body2" color="success.main" gutterBottom>
+            🎯 Hovering above {currentTarget.type} - Gathering intelligence
           </Typography>
         )}
         <Typography variant="body2" color={isCrashed ? 'error' : 'inherit'}>
-          Status: {isCrashed ? '💥 CRASHED - TERMINATED' : (isMoving ? '🚁 Moving to Target' : '✅ Stationary')}
+          Status: {isCrashed ? '💥 CRASHED - TERMINATED' : 
+                   isHovering ? '🔄 Hovering Above Target' :
+                   (isMoving ? '🚁 Moving to Target' : '✅ Stationary')}
         </Typography>
         <Typography variant="body2">Position: {position.map(p => p.toFixed(1)).join(', ')}</Typography>
         <Typography variant="body2">Altitude: {position[1].toFixed(1)}m</Typography>
-        <Typography variant="body2">Speed: {isCrashed ? '0.0' : (isMoving ? '35.0' : '0.0')} km/h</Typography>
+        <Typography variant="body2">Speed: {isCrashed ? '0.0' : (isMoving || isHovering ? '35.0' : '0.0')} km/h</Typography>
         <Typography variant="body2" color={isMoving ? 'warning.main' : 'success.main'}>
           Collision Detection: {isMoving ? '🔴 ACTIVE' : '🟢 STANDBY'}
         </Typography>

@@ -13,51 +13,12 @@ const MissionHUD = () => {
   const {
     missionType,
     missionStatus,
-    missionStartTime,
-    missionDuration,
+    missionTimeRemaining,
     objectives,
-    updateSurveillanceTime
+    isHovering,
+    currentTarget
   } = useMissionStore();
 
-  const [currentTime, setCurrentTime] = useState(Date.now());
-  const [missionElapsed, setMissionElapsed] = useState(0);
-
-  // Update current time every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Calculate mission elapsed time
-  useEffect(() => {
-    if (missionStartTime && missionStatus === 'active') {
-      const elapsed = (currentTime - missionStartTime) / 1000;
-      setMissionElapsed(elapsed);
-      
-      // Auto-complete mission if time runs out
-      if (elapsed >= missionDuration) {
-        // Check if objectives are met
-        const success = checkMissionSuccess();
-        useMissionStore.getState().completeMission(success);
-      }
-    }
-  }, [currentTime, missionStartTime, missionStatus, missionDuration]);
-
-  const checkMissionSuccess = () => {
-    const { objectives, missionType } = useMissionStore.getState();
-    
-    if (missionType === 'surveillance') {
-      return objectives.surveillanceComplete && objectives.detectionEvents <= objectives.maxAllowedDetections;
-    } else if (missionType === 'surveillance-attack') {
-      return objectives.surveillanceComplete && 
-             objectives.targetsDestroyed >= objectives.requiredTargetsDestroyed &&
-             objectives.detectionEvents <= objectives.maxAllowedDetections;
-    }
-    
-    return false;
-  };
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -65,16 +26,8 @@ const MissionHUD = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getTimeRemaining = () => {
-    return Math.max(0, missionDuration - missionElapsed);
-  };
-
-  const getMissionProgress = () => {
-    return Math.min(100, (missionElapsed / missionDuration) * 100);
-  };
-
-  const getSurveillanceProgress = () => {
-    return Math.min(100, (objectives.surveillanceTime / objectives.requiredSurveillanceTime) * 100);
+  const getHoverProgress = () => {
+    return Math.min(100, (objectives.hoverTime / objectives.requiredSurveillanceTime) * 100);
   };
 
   if (missionStatus !== 'active') {
@@ -120,21 +73,42 @@ const MissionHUD = () => {
               Mission Time
             </Typography>
             <Typography variant="body2" color={getTimeRemaining() < 60 ? 'error.main' : 'text.primary'}>
-              {formatTime(getTimeRemaining())} remaining
+              {formatTime(missionTimeRemaining)} remaining
             </Typography>
           </Box>
           <LinearProgress
             variant="determinate"
-            value={getMissionProgress()}
+            value={100 - (missionTimeRemaining / 300) * 100} // Assuming max 5 minutes
             sx={{
               height: 8,
               borderRadius: 1,
               bgcolor: 'rgba(255,255,255,0.1)',
               '& .MuiLinearProgress-bar': {
-                bgcolor: getTimeRemaining() < 60 ? '#f44336' : '#4caf50'
+                bgcolor: missionTimeRemaining < 30 ? '#f44336' : '#4caf50'
               }
             }}
           />
+        </Box>
+
+        {/* Current Status */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Current Status
+          </Typography>
+          
+          {isHovering && currentTarget ? (
+            <Alert severity="success" sx={{ py: 0.5 }}>
+              <Typography variant="body2">
+                🎯 Hovering above {currentTarget.type} - Gathering intelligence
+              </Typography>
+            </Alert>
+          ) : (
+            <Alert severity="info" sx={{ py: 0.5 }}>
+              <Typography variant="body2">
+                🔍 Exploring terrain - Fly over objects to discover targets
+              </Typography>
+            </Alert>
+          )}
         </Box>
 
         {/* Objectives */}
@@ -143,25 +117,25 @@ const MissionHUD = () => {
             Mission Objectives
           </Typography>
           
-          {/* Surveillance Objective */}
+          {/* Hover Objective */}
           <Box sx={{ mb: 1 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
               <Typography variant="body2">
-                Surveillance
+                Target Surveillance
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 {objectives.surveillanceComplete ? (
                   <CheckIcon sx={{ color: '#4caf50', fontSize: 16, mr: 0.5 }} />
                 ) : (
                   <Typography variant="caption" color="text.secondary">
-                    {formatTime(objectives.surveillanceTime)} / {formatTime(objectives.requiredSurveillanceTime)}
+                    {formatTime(objectives.hoverTime)} / {formatTime(objectives.requiredSurveillanceTime)}
                   </Typography>
                 )}
               </Box>
             </Box>
             <LinearProgress
               variant="determinate"
-              value={getSurveillanceProgress()}
+              value={getHoverProgress()}
               sx={{
                 height: 4,
                 borderRadius: 1,
@@ -214,7 +188,7 @@ const MissionHUD = () => {
         </Box>
 
         {/* Warnings */}
-        {getTimeRemaining() < 60 && (
+        {missionTimeRemaining < 30 && (
           <Alert severity="warning" sx={{ mb: 1 }}>
             <Typography variant="body2">
               Mission time critical - return to base immediately!

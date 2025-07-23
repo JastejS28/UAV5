@@ -5,8 +5,11 @@ export const useMissionStore = create(
   subscribeWithSelector((set, get) => ({
     // Mission configuration
     missionType: null, // 'surveillance' | 'surveillance-attack'
-    missionDuration: 300, // Total mission time in seconds (5 minutes default)
-    targetArea: null, // Target coordinates [x, y, z]
+    missionDuration: 60, // Total mission time in seconds (1 minute default)
+    baseLocation: [-45, 30, -45], // Home base location
+    currentTarget: null, // Currently detected target for hovering
+    isHovering: false, // Whether UAV is hovering above target
+    hoverStartTime: null, // When hovering started
     
     // Payload configuration
     selectedPayload: {
@@ -18,15 +21,17 @@ export const useMissionStore = create(
     missionStatus: 'planning', // 'planning' | 'active' | 'completed' | 'failed'
     missionStartTime: null,
     missionEndTime: null,
+    missionTimeRemaining: 60, // Countdown timer
     
     // Time calculations
-    travelTime: 0, // Calculated travel time to target and back
-    operationalTime: 0, // Time available for operations at target
+    timeToTarget: 0, // Time to reach current target
+    timeToBase: 0, // Time to return to base
+    hoverTime: 0, // Time spent hovering above targets
     
     // Mission objectives tracking
     objectives: {
       surveillanceComplete: false,
-      surveillanceTime: 0, // Time spent in surveillance
+      hoverTime: 0, // Time spent hovering above targets
       requiredSurveillanceTime: 60, // Required surveillance time in seconds
       targetsDestroyed: 0,
       requiredTargetsDestroyed: 0,
@@ -43,7 +48,7 @@ export const useMissionStore = create(
         set({
           objectives: {
             ...get().objectives,
-            requiredSurveillanceTime: 120, // 2 minutes for surveillance only
+            requiredSurveillanceTime: 30, // 30 seconds for surveillance only
             requiredTargetsDestroyed: 0
           }
         });
@@ -51,7 +56,7 @@ export const useMissionStore = create(
         set({
           objectives: {
             ...get().objectives,
-            requiredSurveillanceTime: 60, // 1 minute surveillance
+            requiredSurveillanceTime: 20, // 20 seconds surveillance
             requiredTargetsDestroyed: 3 // Destroy 3 targets
           }
         });
@@ -59,75 +64,142 @@ export const useMissionStore = create(
     },
     
     setMissionDuration: (duration) => {
-      set({ missionDuration: duration });
-      get().calculateOperationalTime();
+      set({ 
+        missionDuration: duration,
+        missionTimeRemaining: duration,
+        objectives: {
+          ...get().objectives,
+          requiredSurveillanceTime: Math.min(duration * 0.5, get().objectives.requiredSurveillanceTime)
+        }
+      });
     },
     
-    setTargetArea: (coordinates) => {
-      set({ targetArea: coordinates });
-      get().calculateTravelTime();
+    setCurrentTarget: (target) => {
+      set({ currentTarget: target });
+      if (target) {
+        get().calculateTimeToTarget();
+      }
     },
     
     setPayload: (payload) => {
       set({ selectedPayload: payload });
     },
     
-    calculateTravelTime: () => {
-      const { targetArea } = get();
-      if (!targetArea) return;
+    calculateTimeToTarget: () => {
+      const { currentTarget, baseLocation } = get();
+      if (!currentTarget) return;
       
-      // Assume UAV starts at [0, 50, 0] (spawn position)
-      const startPosition = [0, 50, 0];
+      // Get current UAV position
+      const currentPosition = useUAVStore.getState().position;
+      
+      // Calculate distance to target
       const distance = Math.sqrt(
-        Math.pow(targetArea[0] - startPosition[0], 2) +
-        Math.pow(targetArea[1] - startPosition[1], 2) +
-        Math.pow(targetArea[2] - startPosition[2], 2)
+        Math.pow(currentTarget.position[0] - currentPosition[0], 2) +
+        Math.pow(currentTarget.position[1] - currentPosition[1], 2) +
+        Math.pow(currentTarget.position[2] - currentPosition[2], 2)
       );
       
-      // Assume UAV speed of 20 units per second
-      const uavSpeed = 20;
-      const oneWayTime = distance / uavSpeed;
-      const totalTravelTime = oneWayTime * 2; // Round trip
+      // Calculate distance from target to base
+      const distanceToBase = Math.sqrt(
+        Math.pow(baseLocation[0] - currentTarget.position[0], 2) +
+        Math.pow(baseLocation[1] - currentTarget.position[1], 2) +
+        Math.pow(baseLocation[2] - currentTarget.position[2], 2)
+      );
       
-      set({ travelTime: totalTravelTime });
-      get().calculateOperationalTime();
+      // Assume UAV speed of 30 units per second
+      const uavSpeed = 30;
+      const timeToTarget = distance / uavSpeed;
+      const timeToBase = distanceToBase / uavSpeed;
+      
+      set({ 
+        timeToTarget: timeToTarget,
+        timeToBase: timeToBase
+      });
     },
     
-    calculateOperationalTime: () => {
-      const { missionDuration, travelTime } = get();
-      const operational = Math.max(0, missionDuration - travelTime);
-      set({ operationalTime: operational });
+    startHovering: () => {
+      set({ 
+        isHovering: true,
+        hoverStartTime: Date.now()
+      });
+    },
+    
+    stopHovering: () => {
+      const { hoverStartTime, hoverTime } = get();
+      if (hoverStartTime) {
+        const additionalHoverTime = (Date.now() - hoverStartTime) / 1000;
+        set({ 
+          isHovering: false,
+          hoverStartTime: null,
+          hoverTime: hoverTime + additionalHoverTime,
+          objectives: {
+            ...get().objectives,
+            hoverTime: hoverTime + additionalHoverTime
+          }
+        });
+      }
     },
     
     startMission: () => {
       set({
         missionStatus: 'active',
         missionStartTime: Date.now(),
+        missionTimeRemaining: get().missionDuration,
         objectives: {
           ...get().objectives,
           surveillanceComplete: false,
-          surveillanceTime: 0,
+          hoverTime: 0,
           targetsDestroyed: 0,
           detectionEvents: 0
-        }
+        },
+        hoverTime: 0
       });
+      
+      // Start mission timer
+      get().startMissionTimer();
+    },
+    
+    startMissionTimer: () => {
+      const timer = setInterval(() => {
+        const { missionTimeRemaining, missionStatus } = get();
+        
+        if (missionStatus !== 'active') {
+          clearInterval(timer);
+          return;
+        }
+        
+        const newTimeRemaining = Math.max(0, missionTimeRemaining - 1);
+        set({ missionTimeRemaining: newTimeRemaining });
+        
+        // Auto-complete mission if time runs out
+        if (newTimeRemaining <= 0) {
+          clearInterval(timer);
+          const success = get().checkMissionSuccess();
+          get().completeMission(success);
+        }
+      }, 1000);
     },
     
     completeMission: (success = true) => {
+      // Stop hovering if active
+      if (get().isHovering) {
+        get().stopHovering();
+      }
+      
       set({
         missionStatus: success ? 'completed' : 'failed',
         missionEndTime: Date.now()
       });
     },
     
-    updateSurveillanceTime: (deltaTime) => {
+    updateHoverTime: (deltaTime) => {
       const current = get().objectives;
-      const newTime = current.surveillanceTime + deltaTime;
+      const newTime = current.hoverTime + deltaTime;
       
       set({
         objectives: {
           ...current,
-          surveillanceTime: newTime,
+          hoverTime: newTime,
           surveillanceComplete: newTime >= current.requiredSurveillanceTime
         }
       });
@@ -160,20 +232,38 @@ export const useMissionStore = create(
       }
     },
     
+    checkMissionSuccess: () => {
+      const { objectives, missionType } = get();
+      
+      if (missionType === 'surveillance') {
+        return objectives.surveillanceComplete && objectives.detectionEvents <= objectives.maxAllowedDetections;
+      } else if (missionType === 'surveillance-attack') {
+        return objectives.surveillanceComplete && 
+               objectives.targetsDestroyed >= objectives.requiredTargetsDestroyed &&
+               objectives.detectionEvents <= objectives.maxAllowedDetections;
+      }
+      
+      return false;
+    },
+    
     resetMission: () => {
       set({
         missionType: null,
-        missionDuration: 300,
-        targetArea: null,
+        missionDuration: 60,
+        currentTarget: null,
+        isHovering: false,
+        hoverStartTime: null,
         selectedPayload: { bombs: 0, missiles: 0 },
         missionStatus: 'planning',
         missionStartTime: null,
         missionEndTime: null,
-        travelTime: 0,
-        operationalTime: 0,
+        missionTimeRemaining: 60,
+        timeToTarget: 0,
+        timeToBase: 0,
+        hoverTime: 0,
         objectives: {
           surveillanceComplete: false,
-          surveillanceTime: 0,
+          hoverTime: 0,
           requiredSurveillanceTime: 60,
           targetsDestroyed: 0,
           requiredTargetsDestroyed: 0,
@@ -185,10 +275,10 @@ export const useMissionStore = create(
     
     // Validation
     isMissionValid: () => {
-      const { missionType, targetArea, operationalTime, selectedPayload } = get();
+      const { missionType, missionDuration, selectedPayload } = get();
       
-      if (!missionType || !targetArea) return false;
-      if (operationalTime <= 0) return false;
+      if (!missionType) return false;
+      if (missionDuration <= 0) return false;
       
       // For attack missions, ensure payload is selected
       if (missionType === 'surveillance-attack') {
