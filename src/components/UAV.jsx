@@ -34,35 +34,6 @@ const UAV = (props) => {
   }, []);
 
   useFrame(() => {
-    // Handle UAV movement first
-    if (!isCrashed && targetPosition) {
-      const currentPos = new THREE.Vector3(...position);
-      const targetPos = new THREE.Vector3(...targetPosition);
-      const direction = new THREE.Vector3().subVectors(targetPos, currentPos).normalize();
-      const distance = currentPos.distanceTo(targetPos);
-      
-      // Only move if not very close to target
-      if (distance > 0.5) {
-        // Calculate new position
-        const stepSize = Math.min(speed, distance);
-        const newPos = new THREE.Vector3().copy(currentPos);
-        newPos.addScaledVector(direction, stepSize);
-        
-        // Update position in store
-        useUAVStore.getState().setPosition([newPos.x, newPos.y, newPos.z]);
-        
-        // Update rotation to face movement direction
-        if (Math.abs(direction.x) > 0.01 || Math.abs(direction.z) > 0.01) {
-          const angle = Math.atan2(direction.x, direction.z);
-          useUAVStore.getState().setRotation([0, angle, 0]);
-        }
-      } else {
-        // Snap to target and clear it
-        useUAVStore.getState().setPosition([...targetPosition]);
-        useUAVStore.getState().setTargetPosition(null);
-      }
-    }
-    
     if (!modelRef.current) return;
     
     // If crashed, make UAV shake and don't move
