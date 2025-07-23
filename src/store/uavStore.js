@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import * as THREE from 'three';
 
+// Helper function for deep array comparison
+const arraysEqual = (a, b) => {
+  if (!a || !b) return a === b;
+  if (a.length !== b.length) return false;
+  return a.every((val, i) => Math.abs(val - b[i]) < 0.001);
+};
+
 // Create a flag outside the store to break potential circular updates
 let isUpdating = false;
 
@@ -17,48 +24,32 @@ export const useUAVStore = create(
       isCrashed: false,
       crashReason: '',
       isThermalVision: false,
-      targets: [],
       
       // Actions
       setPosition: (newPosition) => {
         // Skip if currently processing an update to break circular dependencies
         if (isUpdating) return;
         
-        // Check if position actually changed
+        // Check if position actually changed using deep comparison
         const currentPos = get().position;
-        if (currentPos[0] === newPosition[0] && 
-            currentPos[1] === newPosition[1] && 
-            currentPos[2] === newPosition[2]) {
+        if (arraysEqual(currentPos, newPosition)) {
           return; // Skip if unchanged
         }
         
-        // Set flag, update state, clear flag
-        try {
-          isUpdating = true;
-          set({ position: newPosition });
-        } finally {
-          isUpdating = false;
-        }
+        set({ position: newPosition });
       },
       
       setRotation: (newRotation) => {
         // Skip if currently processing an update
         if (isUpdating) return;
         
-        // Only update if changed
+        // Only update if changed using deep comparison
         const currentRot = get().rotation;
-        if (currentRot[0] === newRotation[0] && 
-            currentRot[1] === newRotation[1] && 
-            currentRot[2] === newRotation[2]) {
+        if (arraysEqual(currentRot, newRotation)) {
           return; 
         }
         
-        try {
-          isUpdating = true;
-          set({ rotation: newRotation });
-        } finally {
-          isUpdating = false;
-        }
+        set({ rotation: newRotation });
       },
       
       setTargetPosition: (newTarget) => {
@@ -71,12 +62,9 @@ export const useUAVStore = create(
           return;
         }
         
-        // Compare current and new target
+        // Compare current and new target using deep comparison
         const current = get().targetPosition;
-        if (current && 
-            current[0] === newTarget[0] && 
-            current[1] === newTarget[1] && 
-            current[2] === newTarget[2]) {
+        if (arraysEqual(current, newTarget)) {
           return;
         }
         
@@ -91,16 +79,11 @@ export const useUAVStore = create(
       setCrashed: (crashed, reason = '') => {
         if (get().isCrashed === crashed) return;
         
-        try {
-          isUpdating = true;
-          set({ 
-            isCrashed: crashed, 
-            crashReason: reason,
-            ...(crashed ? { targetPosition: null } : {})
-          });
-        } finally {
-          isUpdating = false;
-        }
+        set({ 
+          isCrashed: crashed, 
+          crashReason: reason,
+          ...(crashed ? { targetPosition: null } : {})
+        });
       },
       
       setThermalVision: (enabled) => {
@@ -153,24 +136,19 @@ export const useUAVStore = create(
             const newPos = new THREE.Vector3().copy(currentPos);
             newPos.addScaledVector(direction, stepSize);
             
-            // Update state directly to avoid recursive updates
-            set({ position: [newPos.x, newPos.y, newPos.z] });
+            // Use setPosition to leverage value comparison
+            get().setPosition([newPos.x, newPos.y, newPos.z]);
             
             // Update rotation if moving
             if (Math.abs(direction.x) > 0.01 || Math.abs(direction.z) > 0.01) {
               const angle = Math.atan2(direction.x, direction.z);
-              if (Math.abs(get().rotation[1] - angle) > 0.01) {
-                set({ rotation: [0, angle, 0] });
-              }
+              get().setRotation([0, angle, 0]);
             }
           } 
           else {
             // Snap to target and clear it
-            set({ 
-              position: [...targetPosition], 
-              targetPosition: null,
-              flightPath: [] // Clear flight path when target reached
-            });
+            get().setPosition([...targetPosition]);
+            get().setTargetPosition(null);
           }
         } finally {
           isUpdating = false;

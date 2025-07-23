@@ -5,10 +5,10 @@ import * as THREE from 'three';
 
 const FlightPathVisualizer = () => {
   const lineRef = useRef();
-  const { flightPath, position, targetPosition } = useUAVStore();
+  const { position, targetPosition } = useUAVStore();
   
   useFrame(() => {
-    if (!lineRef.current || !flightPath || flightPath.length < 2 || !targetPosition) {
+    if (!lineRef.current || !targetPosition) {
       if (lineRef.current) {
         lineRef.current.visible = false;
       }
@@ -20,13 +20,12 @@ const FlightPathVisualizer = () => {
     
     // Create points for the flight path
     const points = [];
-    const startPos = new THREE.Vector3(...flightPath[0]);
-    const endPos = new THREE.Vector3(...flightPath[1]);
     const currentPos = new THREE.Vector3(...position);
+    const targetPos = new THREE.Vector3(...targetPosition);
     
-    // Add current position as start of remaining path
+    // Create flight path from current position to target
     points.push(currentPos);
-    points.push(endPos);
+    points.push(targetPos);
     
     // Update line geometry
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -43,10 +42,10 @@ const FlightPathVisualizer = () => {
     <line ref={lineRef}>
       <bufferGeometry />
       <lineBasicMaterial 
-        color="#00ff00" 
+        color="#00ff88" 
         transparent={true} 
         opacity={0.8}
-        linewidth={3}
+        linewidth={2}
       />
     </line>
   );
