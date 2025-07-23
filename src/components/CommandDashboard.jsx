@@ -44,6 +44,7 @@ const CommandDashboard = () => {
         lastUpdateTime.current = now;
       }
     }
+  }, [position]);
 
   const handleMovement = useCallback(() => {
     if (isCrashed) {
