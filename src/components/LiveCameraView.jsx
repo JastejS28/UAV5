@@ -28,11 +28,6 @@ const THERMAL_MATERIALS = {
 
 // Normal materials
 const NORMAL_MATERIALS = {
-  terrain: new THREE.MeshStandardMaterial({ 
-    color: 0x7C745C,
-    roughness: 0.8,
-    metalness: 0.1
-  }),
   uav: new THREE.MeshStandardMaterial({ color: 0x333333 }),
   tank: new THREE.MeshStandardMaterial({ color: 0x2c2c2c }),
   jeep: new THREE.MeshStandardMaterial({ color: 0x3c3c3c }),
@@ -233,10 +228,12 @@ const LiveCameraView = ({ portalRef }) => {
     if (terrainModel) {
       const terrainClone = terrainModel.clone(true);
       terrainClone.scale.set(100, 100, 100);
+      // Store original materials and only set shadow properties
       terrainClone.traverse(node => {
         if (node.isMesh) {
-          node.material = NORMAL_MATERIALS.terrain;
+          // Keep the original material with textures
           node.receiveShadow = true;
+          node.castShadow = true;
         }
       });
       instances.terrain = terrainClone;
@@ -411,9 +408,9 @@ const LiveCameraView = ({ portalRef }) => {
       } else {
         thermalPassRef.current.enabled = false;
         
-        // Restore normal materials
+        // Restore normal materials (skip terrain to keep original textures)
         Object.entries(instances).forEach(([key, instance]) => {
-          if (instance && NORMAL_MATERIALS[key]) {
+          if (instance && NORMAL_MATERIALS[key] && key !== 'terrain') {
             instance.traverse(node => {
               if (node.isMesh) {
                 node.material = NORMAL_MATERIALS[key];
