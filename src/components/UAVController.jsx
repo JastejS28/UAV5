@@ -1,6 +1,6 @@
 // If you don't have this file, create it or add to your existing animation loop
-import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 import { useUAVStore } from '../store/uavStore';
 import { useAttackDroneStore } from '../store/attackDroneStore';
 

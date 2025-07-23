@@ -10,7 +10,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
 // Define sky colors for the live view
-const DAY_SKY_COLOR = new THREE.Color(0x87CEEB);
+const DAY_SKY_COLOR = new THREE.Color(0xF2F4F7);
 const NIGHT_SKY_COLOR = new THREE.Color(0x000000);
 const RAIN_SKY_COLOR = new THREE.Color(0x8B7D6B); // Darker beige for rain
 const THERMAL_SKY_COLOR = new THREE.Color(0x000033);
