@@ -19,22 +19,31 @@ const CommandDashboard = () => {
   const [coordinates, setCoordinates] = useState({ x: '', y: '', z: '' });
   const [altitudeSlider, setAltitudeSlider] = useState(position[1]);
   const isUpdatingFromSlider = useRef(false);
-  const lastPositionY = useRef(50); // Use fixed initial value
+  const lastPositionY = useRef(position[1]); // Initialize with current position
+  const lastUpdateTime = useRef(Date.now()); // Add throttling
 
   // Check if UAV is currently moving
   const isMoving = targetPosition && Array.isArray(targetPosition);
 
-  // Update slider when position changes - use callback to avoid dependency issues
+  // Update slider when position changes - with throttling to prevent loops
   React.useEffect(() => {
-    if (!isUpdatingFromSlider.current && position && position[1] !== undefined) {
+    const now = Date.now();
+    // Throttle updates to every 100ms to prevent infinite loops
+    if (!isUpdatingFromSlider.current && 
+        position && 
+        position[1] !== undefined && 
+        now - lastUpdateTime.current > 100) {
+      
       const currentY = position[1];
       const positionDiff = Math.abs(currentY - lastPositionY.current);
-      if (positionDiff > 0.1) {
+      
+      // Only update if there's a significant change
+      if (positionDiff > 0.5) {
         setAltitudeSlider(currentY);
         lastPositionY.current = currentY;
+        lastUpdateTime.current = now;
       }
     }
-  }, [position]); // Use entire position array instead of position[1]
 
   const handleMovement = useCallback(() => {
     if (isCrashed) {

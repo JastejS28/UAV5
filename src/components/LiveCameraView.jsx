@@ -379,7 +379,16 @@ const LiveCameraView = ({ portalRef }) => {
           if (instance && THERMAL_MATERIALS[key]) {
             instance.traverse(node => {
               if (node.isMesh) {
-                node.material = THERMAL_MATERIALS[key];
+                // For terrain, keep original material to show texture variation
+                if (key === 'terrain') {
+                  // Keep original terrain material but make it slightly warmer
+                  if (node.material.color) {
+                    node.material.color.setHex(0x004400); // Dark green base
+                  }
+                } else {
+                  // Use bright thermal materials for models
+                  node.material = THERMAL_MATERIALS[key];
+                }
               }
             });
           }
