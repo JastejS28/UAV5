@@ -35,8 +35,10 @@ const ThermalShader = {
   uniforms: {
     'tDiffuse': { value: null },
     'time': { value: 0 },
-    'noiseIntensity': { value: 0.05 },
-    'contrast': { value: 1.5 }
+    'noiseIntensity': { value: 0.08 },
+    'contrast': { value: 2.2 },
+    'brightness': { value: 0.1 },
+    'saturation': { value: 1.4 }
   },
   vertexShader: `
     varying vec2 vUv;
@@ -50,6 +52,8 @@ const ThermalShader = {
     uniform float time;
     uniform float noiseIntensity;
     uniform float contrast;
+    uniform float brightness;
+    uniform float saturation;
     varying vec2 vUv;
     
     // Simple noise function
@@ -57,21 +61,28 @@ const ThermalShader = {
       return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
     }
     
+    // Enhanced thermal color mapping with more realistic heat signatures
     vec3 getThermalColor(float temp) {
-      // Cold (purple/blue)
-      if (temp < 0.2) return vec3(0.1, 0.0, 0.3) + vec3(temp * 1.5, 0, temp * 3.0);
+      // Very cold (deep blue/purple)
+      if (temp < 0.15) return vec3(0.0, 0.0, 0.4) + vec3(temp * 0.8, 0, temp * 2.5);
       
-      // Cool (blue to green)
-      else if (temp < 0.4) return vec3(0.0, (temp - 0.2) * 5.0, 0.6 - (temp - 0.2) * 3.0);
+      // Cold (blue to cyan)
+      else if (temp < 0.3) return vec3(0.0, (temp - 0.15) * 4.0, 0.8 - (temp - 0.15) * 2.0);
+      
+      // Cool to medium (cyan to green)
+      else if (temp < 0.45) return vec3((temp - 0.3) * 2.0, 0.9, (temp - 0.3) * 1.5);
       
       // Medium (green to yellow)
-      else if (temp < 0.6) return vec3((temp - 0.4) * 5.0, 1.0, 0.0);
+      else if (temp < 0.65) return vec3((temp - 0.45) * 4.0, 1.0, 0.0);
       
-      // Warm (yellow to orange/red)
-      else if (temp < 0.8) return vec3(1.0, 1.0 - (temp - 0.6) * 5.0, 0.0);
+      // Warm (yellow to orange)
+      else if (temp < 0.8) return vec3(1.0, 0.9 - (temp - 0.65) * 2.0, 0.0);
       
-      // Hot (red to white)
-      else return vec3(1.0, (temp - 0.8) * 5.0, (temp - 0.8) * 5.0);
+      // Hot (orange to red)
+      else if (temp < 0.92) return vec3(1.0, 0.4 - (temp - 0.8) * 2.5, 0.0);
+      
+      // Very hot (red to white)
+      else return vec3(1.0, (temp - 0.92) * 8.0, (temp - 0.92) * 10.0);
     }
     
     void main() {
@@ -80,21 +91,36 @@ const ThermalShader = {
       // Calculate perceived brightness
       float brightness = dot(color.rgb, vec3(0.299, 0.587, 0.114));
       
+      // Add brightness adjustment
+      brightness += brightness;
+      
       // Apply contrast
       brightness = (brightness - 0.5) * contrast + 0.5;
       brightness = clamp(brightness, 0.0, 1.0);
       
-      // Add noise
-      float noise = random(vUv * 100.0 + time * 0.1) * noiseIntensity;
+      // Add enhanced noise with time variation
+      float noise = random(vUv * 150.0 + time * 0.15) * noiseIntensity;
+      float timeNoise = sin(time * 3.0 + vUv.x * 20.0) * 0.02;
+      noise += timeNoise;
       brightness += noise;
       brightness = clamp(brightness, 0.0, 1.0);
       
       // Get thermal color based on brightness
       vec3 thermalColor = getThermalColor(brightness);
       
-      // Add scan lines effect
-      float scanline = sin(vUv.y * 200.0 + time * 2.0) * 0.05;
+      // Enhanced scan lines with multiple frequencies
+      float scanline = sin(vUv.y * 250.0 + time * 3.0) * 0.04;
+      scanline += sin(vUv.y * 500.0 + time * 5.0) * 0.02;
       thermalColor += scanline;
+      
+      // Apply saturation enhancement
+      float gray = dot(thermalColor, vec3(0.299, 0.587, 0.114));
+      thermalColor = mix(vec3(gray), thermalColor, saturation);
+      
+      // Add subtle vignette effect for realism
+      vec2 center = vUv - 0.5;
+      float vignette = 1.0 - dot(center, center) * 0.3;
+      thermalColor *= vignette;
       
       gl_FragColor = vec4(thermalColor, 1.0);
     }
@@ -198,6 +224,10 @@ const LiveCameraView = ({ portalRef }) => {
         // Enable thermal shader and update its uniforms
         thermalPassRef.current.enabled = true;
         thermalPassRef.current.uniforms.time.value += deltaTime;
+        
+        // Add dynamic thermal effects
+        thermalPassRef.current.uniforms.noiseIntensity.value = 0.08 + Math.sin(time * 0.5) * 0.02;
+        thermalPassRef.current.uniforms.contrast.value = 2.2 + Math.sin(time * 0.3) * 0.3;
         
         // Use a base material that works well with the thermal shader
         terrainInstanceRef.current.traverse(node => {

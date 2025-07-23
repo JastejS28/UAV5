@@ -76,8 +76,8 @@ const TerrainClickHandler = () => {
 
     // === SPAWN MODE LOGIC ===
     if (effectiveClickMode === 'spawn') {
-      // Increased safe altitude to 60 units above terrain
-      const spawnPos = [point.x, point.y + 60, point.z];
+      // Safe altitude to 25 units above terrain
+      const spawnPos = [point.x, point.y + 25, point.z];
       console.log('🚁 [SPAWN MODE] Spawning UAV at:', spawnPos);
 
       console.log('🔄 Resetting crash state...');
