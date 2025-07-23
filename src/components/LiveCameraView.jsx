@@ -18,12 +18,12 @@ const THERMAL_SKY_COLOR = new THREE.Color(0x001100); // Dark green for thermal b
 // Create materials for different objects in thermal view
 const THERMAL_MATERIALS = {
   terrain: new THREE.MeshBasicMaterial({ color: 0x004400 }), // Dark green for terrain
-  uav: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0xFFFF00, emissiveIntensity: 3.0 }), // Super bright yellow for UAV
-  tank: new THREE.MeshBasicMaterial({ color: 0xFF6600, emissive: 0xFF6600, emissiveIntensity: 3.0 }), // Super bright orange for tank
-  jeep: new THREE.MeshBasicMaterial({ color: 0xFF8800, emissive: 0xFF8800, emissiveIntensity: 3.0 }), // Super bright yellow-orange for jeep
-  soldier: new THREE.MeshBasicMaterial({ color: 0xFFAA00, emissive: 0xFFAA00, emissiveIntensity: 3.0 }), // Super bright yellow for soldier
-  warehouse: new THREE.MeshBasicMaterial({ color: 0xFF4400, emissive: 0xFF4400, emissiveIntensity: 2.5 }), // Super bright red-orange for warehouse
-  armyBase: new THREE.MeshBasicMaterial({ color: 0xFF6600, emissive: 0xFF6600, emissiveIntensity: 2.5 }), // Super bright orange for army base
+  uav: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0xFFFF00, emissiveIntensity: 4.0 }), // Bright yellow for UAV
+  tank: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0xFFFF00, emissiveIntensity: 4.0 }), // Bright yellow for tank
+  jeep: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0xFFFF00, emissiveIntensity: 4.0 }), // Bright yellow for jeep
+  soldier: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0xFFFF00, emissiveIntensity: 4.0 }), // Bright yellow for soldier
+  warehouse: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0xFFFF00, emissiveIntensity: 3.5 }), // Bright yellow for warehouse
+  armyBase: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0xFFFF00, emissiveIntensity: 3.5 }), // Bright yellow for army base
 };
 
 // Normal materials
