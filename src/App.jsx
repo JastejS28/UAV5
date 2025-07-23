@@ -6,10 +6,14 @@ import DroneTypeSelector from './components/drone-selector/DroneTypeSelector';
 import LiveCameraView from './components/LiveCameraView';
 import EnvironmentSettings from './components/EnvironmentSettings';
 import { useUAVStore } from './store/uavStore';
+import { useMissionStore } from './store/missionStore';
 import SoundInitializer from './components/SoundInitializer';
 import Scene from './components/Scene';
 import { useCameraStore } from './store/cameraStore';
 import CameraControls from './components/CameraControls';
+import MissionPlanningScreen from './components/mission/MissionPlanningScreen';
+import MissionHUD from './components/mission/MissionHUD';
+import MissionResultsScreen from './components/mission/MissionResultsScreen';
 import './App.css';
 
 const darkTheme = createTheme({
@@ -99,6 +103,9 @@ function App() {
   
   // Use the position directly from the store
   const uavPosition = useUAVStore(state => state.position);
+  
+  // Mission store state
+  const { missionStatus, startMission, resetMission } = useMissionStore();
 
   // Update this effect to use the imported state directly
   useEffect(() => {
@@ -155,6 +162,42 @@ function App() {
 
   const { droneType: storeDroneType, setDroneType: setStoreDroneType } = useUAVStore();
   const { cameraMode } = useCameraStore();
+  
+  // Handle mission flow
+  const handleStartMission = () => {
+    startMission();
+  };
+  
+  const handleRestartMission = () => {
+    resetMission();
+  };
+  
+  const handleNewMission = () => {
+    resetMission();
+  };
+  
+  // Show mission planning screen if mission is in planning state
+  if (missionStatus === 'planning') {
+    return (
+      <ThemeProvider theme={darkTheme}>
+        <CssBaseline />
+        <MissionPlanningScreen onStartMission={handleStartMission} />
+      </ThemeProvider>
+    );
+  }
+  
+  // Show mission results screen if mission is completed or failed
+  if (missionStatus === 'completed' || missionStatus === 'failed') {
+    return (
+      <ThemeProvider theme={darkTheme}>
+        <CssBaseline />
+        <MissionResultsScreen 
+          onRestart={handleRestartMission}
+          onNewMission={handleNewMission}
+        />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -163,6 +206,9 @@ function App() {
         
         {/* Use the SpawnMessage component */}
         <SpawnMessage />
+        
+        {/* Mission HUD */}
+        <MissionHUD />
         
         <Box
           sx={{
