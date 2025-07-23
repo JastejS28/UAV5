@@ -338,7 +338,7 @@ const CommandDashboard = () => {
         </Box>
       </Paper>
     </Box>
-  );
+  )
 };
 
 export default CommandDashboard;
