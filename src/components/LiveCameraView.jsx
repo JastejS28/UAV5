@@ -13,17 +13,17 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 const DAY_SKY_COLOR = new THREE.Color(0xF2F4F7);
 const NIGHT_SKY_COLOR = new THREE.Color(0x000000);
 const RAIN_SKY_COLOR = new THREE.Color(0x8B7D6B); // Darker beige for rain
-const THERMAL_SKY_COLOR = new THREE.Color(0x000033);
+const THERMAL_SKY_COLOR = new THREE.Color(0x001122); // Darker blue-black for thermal
 
 // Create materials for different objects in thermal view
 const THERMAL_MATERIALS = {
-  terrain: new THREE.MeshBasicMaterial({ color: 0x004400 }), // Dark green for terrain
-  uav: new THREE.MeshBasicMaterial({ color: 0xFF0000 }), // Red hot for UAV
-  tank: new THREE.MeshBasicMaterial({ color: 0xFF4400 }), // Orange-red for tank
-  jeep: new THREE.MeshBasicMaterial({ color: 0xFF6600 }), // Orange for jeep
-  soldier: new THREE.MeshBasicMaterial({ color: 0xFF8800 }), // Yellow-orange for soldier
-  warehouse: new THREE.MeshBasicMaterial({ color: 0x0066FF }), // Blue for warehouse
-  armyBase: new THREE.MeshBasicMaterial({ color: 0x0088FF }), // Light blue for army base
+  terrain: new THREE.MeshBasicMaterial({ color: 0x226622 }), // Medium green for terrain
+  uav: new THREE.MeshBasicMaterial({ color: 0xFFFF00, emissive: 0x444400 }), // Bright yellow for UAV
+  tank: new THREE.MeshBasicMaterial({ color: 0xFF6600, emissive: 0x442200 }), // Bright orange for tank
+  jeep: new THREE.MeshBasicMaterial({ color: 0xFF8800, emissive: 0x443300 }), // Bright yellow-orange for jeep
+  soldier: new THREE.MeshBasicMaterial({ color: 0xFFAA00, emissive: 0x443300 }), // Bright yellow for soldier
+  warehouse: new THREE.MeshBasicMaterial({ color: 0x4488FF, emissive: 0x002244 }), // Bright blue for warehouse
+  armyBase: new THREE.MeshBasicMaterial({ color: 0x66AAFF, emissive: 0x003366 }), // Bright light blue for army base
 };
 
 // Normal materials

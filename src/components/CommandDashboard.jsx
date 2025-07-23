@@ -19,21 +19,22 @@ const CommandDashboard = () => {
   const [coordinates, setCoordinates] = useState({ x: '', y: '', z: '' });
   const [altitudeSlider, setAltitudeSlider] = useState(position[1]);
   const isUpdatingFromSlider = useRef(false);
-  const lastPositionY = useRef(position[1]);
+  const lastPositionY = useRef(50); // Use fixed initial value
 
   // Check if UAV is currently moving
   const isMoving = targetPosition && Array.isArray(targetPosition);
 
-  // Update slider when position changes (but not when we're updating from slider)
+  // Update slider when position changes - use callback to avoid dependency issues
   React.useEffect(() => {
-    if (!isUpdatingFromSlider.current) {
-      const positionDiff = Math.abs(position[1] - lastPositionY.current);
+    if (!isUpdatingFromSlider.current && position && position[1] !== undefined) {
+      const currentY = position[1];
+      const positionDiff = Math.abs(currentY - lastPositionY.current);
       if (positionDiff > 0.1) {
-        setAltitudeSlider(position[1]);
-        lastPositionY.current = position[1];
+        setAltitudeSlider(currentY);
+        lastPositionY.current = currentY;
       }
     }
-  }, [position[1]]);
+  }, [position]); // Use entire position array instead of position[1]
 
   const handleMovement = useCallback(() => {
     if (isCrashed) {
