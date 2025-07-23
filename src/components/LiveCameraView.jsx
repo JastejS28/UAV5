@@ -87,31 +87,31 @@ const ThermalShader = {
       temp = clamp(temp, 0.0, 1.0);
       
       // Very cold (deep blue/purple)
-      if (temp < 0.1) return mix(vec3(0.0, 0.0, 0.3), vec3(0.0, 0.0, 0.6), temp * 10.0);
+      if (temp < 0.1) return mix(vec3(0.0, 0.1, 0.2), vec3(0.0, 0.2, 0.4), temp * 10.0);
       
       // Cold (blue to cyan)
-      else if (temp < 0.25) return mix(vec3(0.0, 0.0, 0.6), vec3(0.0, 0.4, 0.8), (temp - 0.1) * 6.67);
+      else if (temp < 0.25) return mix(vec3(0.0, 0.2, 0.4), vec3(0.0, 0.5, 0.7), (temp - 0.1) * 6.67);
       
       // Cool (cyan to green)
-      else if (temp < 0.4) return mix(vec3(0.0, 0.4, 0.8), vec3(0.0, 0.8, 0.4), (temp - 0.25) * 6.67);
+      else if (temp < 0.4) return mix(vec3(0.0, 0.5, 0.7), vec3(0.2, 0.8, 0.3), (temp - 0.25) * 6.67);
       
       // Medium cool (green)
-      else if (temp < 0.5) return mix(vec3(0.0, 0.8, 0.4), vec3(0.2, 1.0, 0.0), (temp - 0.4) * 10.0);
+      else if (temp < 0.5) return mix(vec3(0.2, 0.8, 0.3), vec3(0.4, 1.0, 0.2), (temp - 0.4) * 10.0);
       
       // Medium (green to yellow)
-      else if (temp < 0.65) return mix(vec3(0.2, 1.0, 0.0), vec3(0.8, 1.0, 0.0), (temp - 0.5) * 6.67);
+      else if (temp < 0.65) return mix(vec3(0.4, 1.0, 0.2), vec3(0.9, 1.0, 0.1), (temp - 0.5) * 6.67);
       
       // Warm (yellow to orange)
-      else if (temp < 0.8) return mix(vec3(0.8, 1.0, 0.0), vec3(1.0, 0.6, 0.0), (temp - 0.65) * 6.67);
+      else if (temp < 0.8) return mix(vec3(0.9, 1.0, 0.1), vec3(1.0, 0.7, 0.0), (temp - 0.65) * 6.67);
       
       // Hot (orange to red)
-      else if (temp < 0.9) return mix(vec3(1.0, 0.6, 0.0), vec3(1.0, 0.2, 0.0), (temp - 0.8) * 10.0);
+      else if (temp < 0.9) return mix(vec3(1.0, 0.7, 0.0), vec3(1.0, 0.3, 0.0), (temp - 0.8) * 10.0);
       
       // Very hot (red to bright red)
-      else if (temp < 0.95) return mix(vec3(1.0, 0.2, 0.0), vec3(1.0, 0.0, 0.0), (temp - 0.9) * 20.0);
+      else if (temp < 0.95) return mix(vec3(1.0, 0.3, 0.0), vec3(1.0, 0.1, 0.0), (temp - 0.9) * 20.0);
       
       // Extremely hot (red to white)
-      else return mix(vec3(1.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0), (temp - 0.95) * 20.0);
+      else return mix(vec3(1.0, 0.1, 0.0), vec3(1.0, 1.0, 0.8), (temp - 0.95) * 20.0);
     }
     
     void main() {
@@ -137,11 +137,6 @@ const ThermalShader = {
       
       // Get thermal color
       vec3 thermalColor = getThermalColor(brightness);
-      
-      // Enhance brightness for models (non-terrain objects)
-      if (brightness > 0.3) {
-        thermalColor = mix(thermalColor, vec3(1.0, 1.0, 0.0), 0.3); // Add yellow tint to bright objects
-      }
       
       // Add realistic scan lines with multiple frequencies
       float scanline1 = sin(vUv.y * 400.0 + time * 2.0) * scanlineIntensity;
