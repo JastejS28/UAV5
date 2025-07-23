@@ -20,7 +20,7 @@ export const useUAVStore = create(
       position: [0, 50, 0],
       rotation: [0, 0, 0],
       targetPosition: null,
-      speed: 0.3,
+      speed: 0.2,
       isCrashed: false,
       crashReason: '',
       isThermalVision: false,
